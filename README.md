@@ -14,3 +14,4 @@ Numerical Analysis algorithms/methods in Python.
 
 **Boundary-Value Problems**
 - Linear Finite Difference Method
+- Nonlinear Finite Difference Method
