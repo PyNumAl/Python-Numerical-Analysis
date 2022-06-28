@@ -1,4 +1,16 @@
 # Python-Numerical-Analysis
-Implementation of Numerical Analysis algorithms/methods in Python.
+Numerical Analysis algorithms/methods in Python.
 
-Not yet complete. This is a work-in-progress, but I already have several algorithms along the way to wrap up and finish.
+# Implementation
+
+**System of Nonlinear Equations**
+- derivatives.py (jacobian, gradient, and hessian approximation using finte differences)
+
+**Numerical Differentiation**
+- Finite Difference Coefficients Calculator
+
+**Interpolation**
+- Linear Splines
+
+**Boundary-Value Problems**
+- Linear Finite Difference Method
