@@ -15,3 +15,6 @@ Numerical Analysis algorithms/methods in Python.
 **Boundary-Value Problems**
 - Linear Finite Difference Method
 - Nonlinear Finite Difference Method
+
+**Initial-Value Problems**
+- Runge-Kutta methods (Order 1 to 5, fixed-step or adaptive using step-doubling)
