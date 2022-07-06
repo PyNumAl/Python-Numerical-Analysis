@@ -9,9 +9,9 @@ class RK:
         dy / dt = fun(t, y, *args)
     
     Fixed-step or adaptive integration is available. When adaptive integration is used, a scheme
-    of RKq(p) is performed using step-doubling (https://en.wikipedia.org/wiki/Adaptive_step_size),
-    where q = order + 1 and p = order. Richardson extrapolation is used to obtain a higher-order estimate
-    as well as a local truncation error estimate. Thus, the methods become:
+    of RKq(p) is performed using step-doubling [1], where q = order + 1 and p = order.
+    Richardson extrapolation is used to obtain a higher-order estimate as well as a local truncation error estimate.
+    Thus, the methods become:
         
         order = 1 : RK2(1)
         order = 2 : RK3(2)
@@ -20,10 +20,10 @@ class RK:
         order = 5 : RK6(5)
     
     A hermite spline interpolant is provided for dense output. It can be shown that for a p-th order Runge-Kutta method,
-    one can get by with dense output of order p−1 (https://scicomp.stackexchange.com/questions/7362/intermediate-values-interpolation-after-runge-kutta-calculation).
-    Hence, for methods of order < 5, a cubic hermite spline (https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.CubicHermiteSpline.html)
-    is used. Otherwise, for methods of order >=5  e.g. RK5, RK5(4), and RK6(5), a quintic hermite spline using
-    scipy.interpolate.BPoly.from_derivatives is created and used so that the interpolation error is of the same order
+    one can get by with dense output of order p−1 [2].
+    Hence, for methods of order < 5, scipy.interpolate.CubicHermiteSpline is used.
+    Otherwise, for methods of order >=5  e.g. RK5, RK5(4), and RK6(5), a quintic hermite spline using
+    scipy.interpolate.BPoly.from_derivatives is created so that the interpolation error is of the same order
     as the method used.
     
     
@@ -41,17 +41,18 @@ class RK:
         The initial values. Must be a 1d input. Complex integration is not supported.
         An error will be raised when passed complex values.
     
-    h : float
+    h : float, optional
         The stepsize to be used for fixed-step integration. For adaptive integration, it is taken as the guess for
         the first step satisfying atol and rtol. h must be greater than zero but not greater than the interval width.
+        If adaptive mode is set and h is None, the a suitable first stepsize is estimated as described in [3],[4]
     order : {1, 2, 3, 4, 5}, optional
         Select which Runge-Kutta method to use.
         
         1 : Euler's method
         2 : Heun's method
-        3 : 3rd-Order Runge-Kutta [1]
+        3 : 3rd-Order Runge-Kutta [5]
         4 : 4th-Order Runge-Kutta
-        5 : Butcher's 5th-Order Runge-Kutta [2]
+        5 : Butcher's 5th-Order Runge-Kutta [6],[7]
         
     adaptive : {True, False}, optional
         Whether to perform adaptive or fixed-step integration. Adaptive integration is done via step-doubling.
@@ -84,8 +85,13 @@ class RK:
     
     References
     --------
-    [1]    Jacob Bishop. 7.1.7-ODEs: Third-Order Runge-Kutta. (Sept. 21, 2013). Accessed: July 3, 2022. [Online Video]. Available: https://www.youtube.com/watch?v=iS3hsHGY1Ok&t=25s
-    [2]    Jacob Bishop. 7.1.9-ODEs: Butcher's Fifth-Order Runge-Kutta. (Sept. 21, 2013). Accessed: July 3, 2022. [Online Video]. Available: https://www.youtube.com/watch?v=soEj7YHrKyE&t=6s
+    [1] En.wikipedia.org. n.d. Adaptive step size - Wikipedia. [online] Available at: <https://en.wikipedia.org/wiki/Adaptive_step_size> [Accessed 6 July 2022].
+    [2] J. M. (https://scicomp.stackexchange.com/users/127/j-m), Intermediate values (interpolation) after Runge-Kutta calculation, URL (version: 2013-05-24): https://scicomp.stackexchange.com/q/7363
+    [3] Laurent90 (https://scicomp.stackexchange.com/users/37494/laurent90), How to select initial time step in adaptive time step ODE solver (TR-BDF2), URL (version: 2020-11-18): https://scicomp.stackexchange.com/q/36318
+    [4] SciPy. (2017). https://github.com/scipy/scipy/blob/4cf21e753cf937d1c6c2d2a0e372fbc1dbbeea81/scipy/integrate/_ivp/common.py#L64. 
+    [5] Jacob Bishop. 7.1.7-ODEs: Third-Order Runge-Kutta. (Sept. 21, 2013). Accessed: July 3, 2022. [Online Video]. Available: https://www.youtube.com/watch?v=iS3hsHGY1Ok&t=25s
+    [6] Jacob Bishop. 7.1.9-ODEs: Butcher's Fifth-Order Runge-Kutta. (Sept. 21, 2013). Accessed: July 3, 2022. [Online Video]. Available: https://www.youtube.com/watch?v=soEj7YHrKyE&t=6s
+    [7] Butcher, J.C. On fifth order Runge-Kutta methods. Bit Numer Math 35, 202–209 (1995). https://doi.org/10.1007/BF01737162
     """
     def __init__(self, fun, t_span, y0, h=None, order=4, adaptive=True, hmax=inf, hmin=1e-4, rtol=1e-3, atol=1e-6, maxiter=10**5, args=None):
         
