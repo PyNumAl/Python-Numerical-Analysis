@@ -3,11 +3,9 @@ Numerical Analysis algorithms/methods in Python.
 
 # Current Implementations
 
-**System of Nonlinear Equations**
-- derivatives.py (jacobian, gradient, and hessian approximation using finte differences)
-
 **Numerical Differentiation**
 - Finite Difference Coefficients Calculator
+- Jacobian approximation
 
 **Interpolation**
 - Linear Splines
