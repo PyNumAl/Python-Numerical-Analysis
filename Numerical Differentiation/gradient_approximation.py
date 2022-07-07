@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul  7 15:16:37 2022
-
-@author: raqui
-"""
-
 import numpy as np
 
 EPS = np.finfo(float).eps
