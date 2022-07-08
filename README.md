@@ -5,7 +5,7 @@ Numerical Analysis algorithms/methods in Python.
 
 **Numerical Differentiation**
 - Finite Difference Coefficients Calculator
-- Jacobian approximation
+- Jacobian, Gradient, and Hessian approximations
 
 **Interpolation**
 - Linear Splines
