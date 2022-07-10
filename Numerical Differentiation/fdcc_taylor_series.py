@@ -31,6 +31,11 @@ class fdcc:
         
     principal_error_term : SymPy expression
         The order of the method, proportional to the kth power of h.
+    
+    
+    References
+    --------
+    [1] Taylor, Cameron R. (2016). Finite Difference Coefficients Calculator. [Online]. Available at: https://web.media.mit.edu/~crtaylor/calculator.html
     """
     def __init__(self, s, k):
         
