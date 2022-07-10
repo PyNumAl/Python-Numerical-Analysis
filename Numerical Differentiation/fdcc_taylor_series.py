@@ -18,7 +18,7 @@ class fdcc:
     s : array_like
         Stencil points. Must be unique and strictly increasing.
     k : int
-        The desired derivative roder
+        The desired derivative order
     
     
     Returns
