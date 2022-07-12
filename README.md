@@ -25,4 +25,4 @@ Numerical Analysis algorithms/methods in Python.
     - Runge-Kutta-Nystrom methods (**work in progress**)
   - Problems of the more general form $\frac{d^{2}y}{dt^{2}} = f(t,y,\frac{dy}{dt})$
     - Implicit Central Difference Method / Verlet integration (**work in progress**)
-    - Generalized Runge-Kutta-Nystrom methods (**work in progress**)
+    - Runge-Kutta-Nystrom-Generalized (RKNG) methods (**work in progress**)
