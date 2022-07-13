@@ -51,7 +51,8 @@ class ABM:
         6th-order, not just fifth, which is still well-interpolated by the 5th-degree interpolant.
         
     args : list or tuple, optional
-        Additional arguments to pass to the user-defined functions.
+        Additional arguments to pass to the user-defined function f. For example, if f has the signature f(t, y, a, b, c),
+        then args must be a tuple/list of length 3.
     
     
     Returns
