@@ -115,12 +115,16 @@ class RKF:
     Returns : Bunch object with the following fields defined:
         
         sol : The hermite spline interpolant.
+        
         t : ndarray, shape (n_points,)
             Time points.
+        
         y : ndarray, shape (n, n_points)
             Solution values at t.
+        
         accepted_steps : integer
             The number of accepted steps
+        
         rejected_steps : integer
             The number of rejected steps.
     
