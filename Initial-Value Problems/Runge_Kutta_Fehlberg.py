@@ -257,7 +257,6 @@ class RKF:
         KI = -.7/order
         KP = .4/order
         
-        fun = lambda t, y, fun=fun: np.atleast_1d( fun(t,y) )
         t0, tf = tspan
         y0 = np.atleast_1d(y0)
         f0 = fun(t0,y0)
