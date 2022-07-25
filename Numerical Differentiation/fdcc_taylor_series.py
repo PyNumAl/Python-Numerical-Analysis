@@ -4,7 +4,7 @@ import numpy as np
 
 class fdcc:
     """
-    Finite Difference Coefficients Calculator
+    Finite Difference Coefficients Calculator (FDCC)
     
     Using the Taylor Series method, derive the corresponding finite difference expression, weights, and principal
     error term given a stencil and the desired derivative order.
@@ -12,6 +12,29 @@ class fdcc:
     The taylor series method is the most common way for deriving finite difference coefficients in most 
     numerical analysis texts and resources. Thus, a derivation of the finite difference
     coefficients using taylor series is appropriate and fitting.
+    
+    
+    IMPORTANT NOTE (11:29 AM, 2022-07-25):
+    
+        This calculator becomes numerically unstable for very high derivative orders. An example is as follows:
+        
+            >>> sol =  fdcc([0,1,2,3,4,5,6,7,8,9,10],10)
+            >>> print(sol.finite_diff_weights)
+            [14175/134231903, -141750/134231903, 637875/134231903, -1701000/134231903, 2976750/134231903, -3572100/134231903, 2976750/134231903, -1701000/134231903, 637875/134231903, -141750/134231903, 14175/134231903]
+            
+        Meanwhile, the output of the other FDCC using Lagrange Polynomials (https://github.com/PyNumAl/Python-Numerical-Analysis/blob/main/Numerical%20Differentiation/finite_diff_coeff_calculator.py)
+        is much more readable despite being a little bit slower:
+            
+            >>> sol =  FDCC([0,1,2,3,4,5,6,7,8,9,10],10)
+            >>> print(sol.finite_diff_weights)
+            [1, -10, 45, -120, 210, -252, 210, -120, 45, -10, 1]
+           
+        Both calculators yield the same readable output for the 9-point forward finite difference formula for the 9th-derivative:
+            
+            >>> sol = fdcc([0,1,2,3,4,5,6,7,8,9],9)
+            >>> print(sol.finite_diff_weights)
+            [-1, 9, -36, 84, -126, 126, -84, 36, -9, 1]
+            
     
     Parameters
     --------
