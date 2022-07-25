@@ -61,6 +61,10 @@ class RKF:
         estimates. This prior working version was crucial in allowing me to debug and find out
         what was causing the inefficiency of the RK45 pair when the RK78 pair was working quite well in my numerical tests.
     
+    It is also important to note that the Runge-Kutta pairs derived by Fehlberg, including the two implemented here, have issues
+    with computational robustness [8]. The quadrature formulae characterized by the B vectors are identical. Consequently, the error
+    estimates will be too optimistic if the differential equation being solved is approximately or exactly equal to a pure quadrature
+    problem i.e. dy/dt = f(t).
     
     Parameters
     --------
@@ -138,6 +142,7 @@ class RKF:
     [5] Jackson, K. R., et al. “A Theoretical Criterion for Comparing Runge-Kutta Formulas.” SIAM Journal on Numerical Analysis, vol. 15, no. 3, 1978, pp. 618–41. JSTOR, http://www.jstor.org/stable/2156590. Accessed 21 Jul. 2022.
     [6] GUSTAFSSON, K , LUNDH, M , AND SODERLIND, G. A PI stepslze control for the numerical solution of ordinary differential equations, BIT 28, 2 (1988), 270-287.
     [7] GUSTAFSSON,K. 1991. Control theoretic techniques for stepsize selection in explicit RungeKutta methods. ACM Trans. Math. Softw. 174 (Dec.) 533-554.
+    [8] Butcher, J.C. (2016) Numerical Methods for Ordinary Differential Equations. 3rd Edition, Page 222, ISBN: 978-1-119-12150-3, John Wiley & Sons, Ltd., Chichester. https://www.wiley.com/en-us/Numerical+Methods+for+Ordinary+Differential+Equations%2C+3rd+Edition-p-9781119121503
 
     """
     def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=5, rtol=None, atol=None, PI_controller=True, dense_output=True, maxiter=10**5, args=None):
