@@ -8,6 +8,7 @@ Numerical Analysis algorithms/methods in Python.
   - Lagrange polynomial method
   - Taylor series method
 - Jacobian, Gradient, and Hessian approximations
+- Richardson Extrapolation
 
 **Interpolation**
 - Linear Splines
