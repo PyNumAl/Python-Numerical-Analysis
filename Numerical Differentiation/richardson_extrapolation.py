@@ -13,15 +13,16 @@ class numdiff:
     Up to the tenth derivative can be approximated.
     
     The approximations are extrapolated up to the 10th order if needed to satisfy the
-    tolerances, though the approximated value may not necessarily of the same order of
+    tolerances, though the approximated value may not necessarily be of the same order of
     accuracy due to round-off error if the perturbation step h is "too small".
+    
     Whether the perturbation step is too small or not depends on the derivative order
     being approximated; the finite differences for higher derivative orders are divided
     by higher powers of the stepsize h. Hence, either a larger stepsize must 
-    be used to avoid round-off error - which can be
-    problematic when the function is rapidly changing around the point of interest.
-    Or set larger values for the tolerances. In either case, higher order
-    derivatives can only be approximated more roughly than lower order derivatives.
+    be used to avoid round-off error --- which can be problematic when the
+    function is rapidly changing around the point of interest --- or set larger values
+    for the tolerances. In either case, higher order derivatives can only be
+    approximated more roughly than lower order derivatives.
     
     Parameters
     --------
