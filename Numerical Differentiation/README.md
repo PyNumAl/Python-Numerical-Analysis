@@ -7,3 +7,4 @@ Numerical differentiation routines
   - Lagrange polynomial method
   - Taylor series method
 - Jacobian, Gradient, and Hessian approximation
+- Richardson Extrapolation
