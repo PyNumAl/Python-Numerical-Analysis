@@ -12,17 +12,19 @@ class numdiff:
     finite difference formulas to try achieve and satisy the given tolerances.
     Up to the tenth derivative can be approximated.
     
-    The approximations are extrapolated up to the 10th order if needed to satisfy the
-    tolerances, though the approximated value may not necessarily be of the same order of
+    The approximations are extrapolated up to 12th order if needed to satisfy the
+    tolerances, though the approximated value may not necessarily of the same order of
     accuracy due to round-off error if the perturbation step h is "too small".
-    
     Whether the perturbation step is too small or not depends on the derivative order
     being approximated; the finite differences for higher derivative orders are divided
     by higher powers of the stepsize h. Hence, either a larger stepsize must 
-    be used to avoid round-off error --- which can be problematic when the
-    function is rapidly changing around the point of interest --- or set larger values
-    for the tolerances. In either case, higher order derivatives can only be
-    approximated more roughly than lower order derivatives.
+    be used to avoid round-off error - which can be
+    problematic when the function is rapidly changing around the point of interest.
+    Or set larger values for the tolerances.
+    
+    In either case, numerical instability is more prominent for higher order derivatives
+    (derivative orders 6 and greater) and they can only be approximated more roughly
+    than lower order derivatives.
     
     Parameters
     --------
@@ -43,8 +45,9 @@ class numdiff:
             Too small of a stepsize will result in round-off errors
             dominating the approximated values.
         
-        k : {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, optional
-            Desired derivative order. Default is one.
+        k : float or array_like, optional
+            Desired derivative order. Default is one. Range of valid values is
+            from 1 to 10.
         
         mode : {'central', 'forward'}, optional
             The finite-difference method to use. Forward finite differences
@@ -62,7 +65,6 @@ class numdiff:
     """
     def __init__(self,fun):
         self.fun = fun
-        # self._extrapolate(x, h, k, mode, rtol, atol)
         self.fundiff = np.vectorize(self._extrapolate, excluded=[1, 3, 4, 5])
         
     def __call__(self, x, h=.1, k=1, mode='central', rtol=1e-3, atol=1e-6):
@@ -73,6 +75,7 @@ class numdiff:
     @staticmethod
     def _validate_input(fun, x, h, k, mode):
         x = np.asarray(x)
+        k = np.asarray(k)
         if x.dtype not in [int,float]:
             raise TypeError('x must be a real-valued input i.e. int or float.')
         elif np.asarray(fun(x)).dtype not in [int,float]:
@@ -81,8 +84,10 @@ class numdiff:
             raise TypeError('Stepsize h must be a float.')
         elif h==0:
             raise ValueError('Stepsize h cannot be zero.')
-        elif k not in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-            raise Exception('Invalid value of k. Range of valid values for k is from 1 to 10.')
+        elif k.dtype!=int:
+            raise TypeError('Invalid type for k. k must be an integer/s.')
+        elif np.any(k<1) or np.any(k>10):
+            raise ValueError('Invalid value/s for k. Range of valid values for k is from 1 to 10.')
         elif mode not in ['central', 'forward']:
             raise Exception(f"Argument mode can only be {'central'} or {'forward'} ")
         else:
@@ -148,39 +153,24 @@ class numdiff:
     
     def _extrapolate(self, x, h, k, mode, rtol, atol):
         func = lambda x, h: self._approx_derivative(x, h, k, mode)
-        if mode=='central':
-            dim = 5
-            T = np.zeros((dim,dim))
-            T[0,0] = func(x,h)
-            for j in range(dim-1):
-                if j==0:
-                    for i in range(1,dim):
-                        T[i,j] = func(x,h/2**i)
-                        T[i,j+1] = ( 2**(2+2*j)*T[i,j] - T[i-1,j] )  / (2**(2+2*j) - 1)
-                        if np.allclose(T[i,j], T[i,j+1], rtol, atol):
-                            return T[i,j+1]
-                else:
-                    for i in range(j,dim-1):
-                        T[i+1,j+1] = (2**(2+2*j)*T[i+1,j] - T[i,j]) / (2**(2+2*j) - 1)
-                        if np.allclose(T[i+1,j], T[i+1,j+1], rtol, atol):
-                            return T[i+1,j+1]
-            else:
-                return T[-1,-1]
+        dim = {'central':6
+               ,
+               'forward':12
+               }[mode]
+        T = np.zeros((dim,dim))
+        T[0,0] = func(x,h)
+        
+        for i in range(1,dim):
+            T[i,0] = func(x,h/2**i)
+            for j in range(i):
+                c = {'central':2**(2+2*j)
+                     ,
+                     'forward':2**(1+j)
+                     }[mode]
+                T[i,j+1] = ( c*T[i,j] - T[i-1,j] ) / (c-1)
+                if np.allclose(T[i,j], T[i,j+1], rtol, atol):
+                    self.table = T[:i+1,:j+2]
+                    return T[i,j+1]
         else:
-            dim = 10
-            T = np.zeros((dim,dim))
-            T[0,0] = func(x,h)
-            for j in range(dim-1):
-                if j==0:
-                    for i in range(1,dim):
-                        T[i,j] = func(x,h/2**i)
-                        T[i,j+1] = ( 2**(1+j)*T[i,j] - T[i-1,j] )  / (2**(1+j) - 1)
-                        if np.allclose(T[i,j], T[i,j+1], rtol, atol):
-                            return T[i,j+1]
-                else:
-                    for i in range(j,dim-1):
-                        T[i+1,j+1] = (2**(1+j)*T[i+1,j] - T[i,j]) / (2**(1+j) - 1)
-                        if np.allclose(T[i+1,j], T[i+1,j+1], rtol, atol):
-                            return T[i+1,j+1]
-            else:
-                return T[-1,-1]
+            self.table = T
+            return T[-1,-1]
