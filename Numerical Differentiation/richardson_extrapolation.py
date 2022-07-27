@@ -26,13 +26,28 @@ class numdiff:
     (derivative orders 6 and greater) and they can only be approximated more roughly
     than lower order derivatives.
     
+    
     Parameters
     --------
     fun : callable
         The scalar real-valued function whose derivative is to be approximated.
     
-    Methods
+    
+    Attributes and Methods
     --------
+    table : 2d array
+        Richardson extrapolation table. If the derivatives are obtained at multiple x-values,
+        then this is the extrapolation table of the last evaluated x-coordinate. This can easily
+        be accessed as follows:
+        
+            >>> fprime = numdiff(lambda x: 1/x)
+            >>> fprime(4).item()
+            -0.06249999389171215
+            
+            >>> fprime.table
+            array([[-0.06253909,  0.        ],
+                   [-0.06250977, -0.06249999]])
+        
     __call__(x, h, k, mode, rtol, atol)
     
         Parameters
@@ -65,6 +80,7 @@ class numdiff:
     """
     def __init__(self,fun):
         self.fun = fun
+        self.table = None
         self.fundiff = np.vectorize(self._extrapolate, excluded=[1, 3, 4, 5])
         
     def __call__(self, x, h=.1, k=1, mode='central', rtol=1e-3, atol=1e-6):
