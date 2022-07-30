@@ -61,10 +61,6 @@ class RKF:
         estimates. This prior working version was crucial in allowing me to debug and find out
         what was causing the inefficiency of the RK45 pair when the RK78 pair was working quite well in my numerical tests.
     
-    It is also important to note that the Runge-Kutta pairs derived by Fehlberg, including the two implemented here, have issues
-    with computational robustness [8]. The quadrature formulae characterized by the B vectors are identical. Consequently, the error
-    estimates will be too optimistic if the differential equation being solved is approximately or exactly equal to a pure quadrature
-    problem i.e. dy/dt = f(t).
     
     Parameters
     --------
@@ -118,17 +114,18 @@ class RKF:
     
     Returns : Bunch object with the following fields defined:
         
-        sol : The hermite spline interpolant.
-        
         t : ndarray, shape (n_points,)
             Time points.
-        
-        y : ndarray, shape (n, n_points)
+            
+        y : ndarray, shape (n_points, n)
             Solution values at t.
-        
+            
+        sol : scipy.interpolate.BPoly instance
+            The hermite spline interpolant
+            
         accepted_steps : integer
             The number of accepted steps
-        
+            
         rejected_steps : integer
             The number of rejected steps.
     
@@ -142,7 +139,6 @@ class RKF:
     [5] Jackson, K. R., et al. “A Theoretical Criterion for Comparing Runge-Kutta Formulas.” SIAM Journal on Numerical Analysis, vol. 15, no. 3, 1978, pp. 618–41. JSTOR, http://www.jstor.org/stable/2156590. Accessed 21 Jul. 2022.
     [6] GUSTAFSSON, K , LUNDH, M , AND SODERLIND, G. A PI stepslze control for the numerical solution of ordinary differential equations, BIT 28, 2 (1988), 270-287.
     [7] GUSTAFSSON,K. 1991. Control theoretic techniques for stepsize selection in explicit RungeKutta methods. ACM Trans. Math. Softw. 174 (Dec.) 533-554.
-    [8] Butcher, J.C. (2016) Numerical Methods for Ordinary Differential Equations. 3rd Edition, Page 222, ISBN: 978-1-119-12150-3, John Wiley & Sons, Ltd., Chichester. https://www.wiley.com/en-us/Numerical+Methods+for+Ordinary+Differential+Equations%2C+3rd+Edition-p-9781119121503
 
     """
     def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=5, rtol=None, atol=None, PI_controller=True, dense_output=True, maxiter=10**5, args=None):
@@ -163,7 +159,7 @@ class RKF:
         else:
             sol = None
         self.t = t
-        self.y = y.T
+        self.y = y
         self.sol = sol
         self.accepted_steps = hacc
         self.rejected_steps = hrej
@@ -262,6 +258,7 @@ class RKF:
         KI = -.7/order
         KP = .4/order
         
+        fun = lambda t, y, fun=fun: np.atleast_1d( fun(t,y) )
         t0, tf = tspan
         y0 = np.atleast_1d(y0)
         f0 = fun(t0,y0)
@@ -355,7 +352,6 @@ class RKF:
             Y[:,0,:] = y
             Y[:,1,:] = f
             Y[:,2,:] = d2y
-            sol = lambda x: BPoly.from_derivatives(t, Y)(x).T
         else:
             y13 = np.zeros(( steps, k ))
             y23 = np.zeros_like(y13)
@@ -378,9 +374,8 @@ class RKF:
             Y[:,1,:] = f
             Y[:,2,:] = d2y
             Y[:,3,:] = d3y
-            sol = lambda x: BPoly.from_derivatives(t, Y)(x).T
         
-        return sol
+        return BPoly.from_derivatives(t, Y)
     
     
     @staticmethod
