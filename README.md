@@ -28,5 +28,8 @@ Numerical Analysis algorithms/methods in Python.
   - Problems of the special form $\frac{d^{2}y}{dt^{2}} = f(t,y)$
     - Runge-Kutta-Nystrom methods (**work in progress**)
   - General second-order ODEs $\frac{d^{2}y}{dt^{2}} = f(t,y,\frac{dy}{dt})$
-    - Runge-Kutta-Nystrom-Generalized (RKNG) methods (**work in progress**)
+    - Runge-Kutta-Nystrom-Generalized (RKNG) methods
+      - RKNG34
+      - RKNG45 (**work in progress**)
+      - RKNG78 (**work in progress**)
     - Direct Adams-Bashforth-Moulton (DABM) methods (**work in progress**)
