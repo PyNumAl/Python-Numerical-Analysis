@@ -1,3 +1,9 @@
+Floating-Point Coefficients for Fehlberg's RKNG6(7) pair.
+It is First-Same-As-Last (FSAL) only when using the lower,
+sixth (6th) order formula i.e. local extrapolation is not performed,
+unlike newer RK pairs that are both FSAL and locally extrapolating
+always i.e. using the higher order formula to advance the solution.
+
 C[1] = 0.10185185185185185185185185185185
 C[2] = 0.15277777777777777777777777777778
 C[3] = 0.22916666666666666666666666666667
@@ -154,9 +160,8 @@ B[1,8] = 0.30472907521849356793365990503756
 B[1,9] = -0.14218987341772151898734177215190
 
 
-Error Estimate Weights
-solution weights only. The local error of the velocity
-is not controlled.
+Error Estimate Weights. Solution weights only.
+The local error of the velocity is not controlled.
 
 E[0] = 0
 E[1] = 0
