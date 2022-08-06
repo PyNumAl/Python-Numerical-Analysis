@@ -526,7 +526,7 @@ class RKNG:
             
             t_new, y_new, yp_new, f_new, error_norm = self._rkng_step(fun, t_old, y_old, yp_old, f_old, h, rtol, atol, self.C, self.A, self.AP, self.B, self.E, self.FSAL, method)
             
-            if error_norm < 1:
+            if error_norm < 1 or h==hmin:
                 if error_norm == 0:
                     FAC = MAX_FACTOR
                 else:
