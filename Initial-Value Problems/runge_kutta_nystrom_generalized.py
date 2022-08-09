@@ -148,21 +148,25 @@ class RKNG:
     interpolant : {5,8}, optional
         Order of the interpolant to use:
             
-            5 (default) : "Free" quintic hermite spline interpolant, relatively sufficient
-            for the RKNG34 and RKNG45 pairs.
+            5 (default) : "Free" quintic hermite spline interpolant.
+                This interpolant is relatively sufficient for the RKNG
+                pairs that have error estimators of order 4 or less [4].
             
-            8 : 8th-order hermite spline interpolant.This is obtained by calculating
-            the solution, velocity, and 2nd derivative values at the midpoint of each
-            subinterval after the integration is done. With the solution, velocity,
-            and 2nd derivative values known at the left and right endpoints and midpoint
-            of each subinterval, an 8th-degree spline may now be constructed using divided
-            differences. Symbolic Python (SymPy) was used to obtain the expressions for the
-            3rd and 4th derivatives of the 8th-degree spline at the left and right endpoints.
-            scipy.interpolate.BPoly.from_derivatives is used to construct the high-order
-            spline interpolant.The constructed spline interpolant is actually a 9th-order
-            hermite spline because derivatives up to the 4th derivative are provided
-            in order to not "lose information" from the underlying, theoretical
-            (and not constructed) 8th-degree spline.
+            8 : 8th-order hermite spline interpolant
+                Interpolant for the higher order RKNG pairs. This is obtained by 
+                calculating the solution, velocity, and 2nd derivative values at
+                the midpoint of each subinterval after the integration is done.
+                With the solution, velocity, and 2nd derivative values
+                known at the left and right endpoints and midpoint of each subinterval,
+                an 8th-degree spline may now be constructed using divided differences.
+                
+                Symbolic Python (SymPy) was used to obtain the expressions for the
+                3rd and 4th derivatives of the 8th-degree spline at the left and right endpoints.
+                scipy.interpolate.BPoly.from_derivatives is used to construct the high-order
+                spline interpolant.The constructed spline interpolant is actually a 9th-degree
+                hermite spline because derivatives up to the 4th derivative are provided in 
+                order to not "lose information" from the underlying, theoretical 
+                (and not constructed) 8th-degree spline.
     
     h : integer or float, optional
         The initial stepsize to use.
