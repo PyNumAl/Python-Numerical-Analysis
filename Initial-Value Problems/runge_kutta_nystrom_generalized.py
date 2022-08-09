@@ -116,12 +116,26 @@ class RKNG:
                 in y and y' and performs local extrapolation in each step.
                 It does not have the FSAL property.
                 
-                IMPORTANTE NOTE: There is a printing error in [8] - the A[7,3]-th coefficient
-                is lacking a zero in the denominator; it is printed as -31680158501/747419400
-                which evaluates to -42.38605326674689. The coefficients would not sum to 0.5
-                as a result. Adding another zero in the denominator, it becomes
-                -31680158501/7474194000, which evaluates to -4.238605326674689. This allows
-                the A[7]-th row to sum to 0.5.
+                IMPORTANTE NOTES:
+                    There is a printing error in [8] - the A[7,3]-th coefficient is lacking a
+                    zero in the denominator; it is printed as -31680158501/747419400 which
+                    evaluates to -42.38605326674689. The coefficients would not sum to 0.5
+                    as a result. Adding another zero in the denominator, it becomes
+                    -31680158501/7474194000, which evaluates to -4.238605326674689. This allows
+                    the A[7]-th row to sum to 0.5.
+                    
+                    The A[5]-th row coefficients below from the paper do not exactly sum to 0.32,
+                    but only sum up to 0.31999994, 7-decimal digits of accuracy:
+                        
+                        A[5,:5] = [13198826/54140625, -5602364/10828125, 27987101/44687500, -332539/4021872, 1/20]
+                    
+                    From my numerical tests, I believe this to be the reason why this RKNG65 pair fails to achieve accuracy requirements
+                    of 1e-8 or lower. The A[5,3]-th coefficient has the largest magnitude in the A[5]-th row.
+                    Thus, using SymPy, I solved for the value of the A[5,3]-th coefficient that will allow the
+                    A[5]-th row to sum exactly to 0.32. The value as a rational coefficient is
+                    6493877824483/10368888750000. Based on my testing, this improved the accuracy of the method
+                    and allowed it to satisfy tighter tolerance requirements.
+                    
             
             'RKNG67': Runge-Kutta-Nystrom-Generalized method of order 6(7) [2-3].
                 The error (only the y component) is controlled assuming accuracy
@@ -148,25 +162,21 @@ class RKNG:
     interpolant : {5,8}, optional
         Order of the interpolant to use:
             
-            5 (default) : "Free" quintic hermite spline interpolant.
-                This interpolant is relatively sufficient for the RKNG
-                pairs that have error estimators of order 4 or less [4].
+            5 (default) : "Free" quintic hermite spline interpolant, relatively sufficient
+            for the RKNG34 and RKNG45 pairs.
             
-            8 : 8th-order hermite spline interpolant
-                Interpolant for the higher order RKNG pairs. This is obtained by 
-                calculating the solution, velocity, and 2nd derivative values at
-                the midpoint of each subinterval after the integration is done.
-                With the solution, velocity, and 2nd derivative values
-                known at the left and right endpoints and midpoint of each subinterval,
-                an 8th-degree spline may now be constructed using divided differences.
-                
-                Symbolic Python (SymPy) was used to obtain the expressions for the
-                3rd and 4th derivatives of the 8th-degree spline at the left and right endpoints.
-                scipy.interpolate.BPoly.from_derivatives is used to construct the high-order
-                spline interpolant.The constructed spline interpolant is actually a 9th-degree
-                hermite spline because derivatives up to the 4th derivative are provided in 
-                order to not "lose information" from the underlying, theoretical 
-                (and not constructed) 8th-degree spline.
+            8 : 8th-order hermite spline interpolant.This is obtained by calculating
+            the solution, velocity, and 2nd derivative values at the midpoint of each
+            subinterval after the integration is done. With the solution, velocity,
+            and 2nd derivative values known at the left and right endpoints and midpoint
+            of each subinterval, an 8th-degree spline may now be constructed using divided
+            differences. Symbolic Python (SymPy) was used to obtain the expressions for the
+            3rd and 4th derivatives of the 8th-degree spline at the left and right endpoints.
+            scipy.interpolate.BPoly.from_derivatives is used to construct the high-order
+            spline interpolant.The constructed spline interpolant is actually a 9th-order
+            hermite spline because derivatives up to the 4th derivative are provided
+            in order to not "lose information" from the underlying, theoretical
+            (and not constructed) 8th-degree spline.
     
     h : integer or float, optional
         The initial stepsize to use.
@@ -522,7 +532,7 @@ class RKNG:
             A[2,:2] = [14/2187, 40/2187]
             A[3,:3] = [148/3087, -85/3087, 1/14]
             A[4,:4] = [-2201/28350, 932/2835, -7/50, 1/9]
-            A[5,:5] = [13198826/54140625, -5602364/10828125, 27987101/44687500, -332539/4021872, 1/20]
+            A[5,:5] = [13198826/54140625, -5602364/10828125, 6493877824483/10368888750000, -332539/4021872, 1/20]
             A[6,:6] = [-601416947/162162000, 2972539/810810, 10883471/2574000, -503477/99000, 3/5, 4/5]
             A[7,:7] = [-228527046421/72442188000, 445808287/139311900, 104724572891/29896776000, -31680158501/7474194000, 1033813/2044224, 1166143/1703520, 0]
             AP = np.zeros_like(A)
