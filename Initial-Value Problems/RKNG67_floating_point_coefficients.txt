@@ -4,6 +4,7 @@ sixth (6th) order formula i.e. local extrapolation is not performed,
 unlike newer RK pairs that are both FSAL and locally extrapolating
 always i.e. using the higher order formula to advance the solution.
 
+C[0] = 0.0
 C[1] = 0.10185185185185185185185185185185
 C[2] = 0.15277777777777777777777777777778
 C[3] = 0.22916666666666666666666666666667
