@@ -4,6 +4,7 @@ seventh (7th) order formula i.e. local extrapolation is not performed,
 unlike newer RK pairs that are both FSAL and locally extrapolating
 always i.e. using the higher order formula to advance the solution.
 
+C[0] = 0.0
 C[1] = 0.73470804841064383606103566874183E-1
 C[2] = 0.11020620726159657540915535031127
 C[3] = 0.16530931089239486311373302546691
