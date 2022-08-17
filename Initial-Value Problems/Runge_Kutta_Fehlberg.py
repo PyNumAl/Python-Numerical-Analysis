@@ -1,6 +1,6 @@
 import numpy as np
 from warnings import warn
-from scipy.interpolate import BPoly
+from scipy.interpolate import BPoly, CubicHermiteSpline as CHS
 
 EPS = np.finfo(float).eps
 def RMS(x):
@@ -16,17 +16,21 @@ class RKF:
         dy / dt = f(t, y)
         y(t0) = y0
     
-    This class implements Fehlberg's RK45 [1] and RK78 [2] methods in local extrapolation mode i.e.
-    the higher order formula is used to advance the solution even though they were originally intended
-    to be used in RKF4(5) and RKF7(8) modes. Practical results indicate that this is preferable [3-5].
-    Hence, the methods are RKF5(4) and RKF8(7) respectively.
+    This class implements Runge-Kutta-Fehlberg (RKF) pairs from orders 1 to 8 [1-2]. Although practical results
+    indicate that local extrapolation is preferable [3-5], local extrapolation is not performed in this
+    implementation because the RKF1(2), RKF2(3), and RKF3(4) pairs are first-same-as-last (FSAL) when
+    using the lower order formulas; and the RKF8(9) pair doesn't provide the 9th-order formula, only
+    the 8th-order formula and the expression for the error estimate.
     
-    A hermite spline interpolant of fifth and seventh degree are used for dense output for the RK45
-    and RK78 methods, respectively. The fifth-degree interpolant is constructed by obtaining the solution
-    and derivative values at the midpoint of each subinterval while the seventh-degree interpolant
-    obtains the solution and derivative values at the one-third and two-thirds step of each subinterval.
-    Then the symbolic expressions for the second (and third derivatives for the seventh-degree spline)
-    are obtained in terms of the calculated values:
+    For dense output, a "free" 3rd-order interpolant (scipy.interpolate.CubicHermiteSpline) is provided
+    for RKF pairs of orders below 5 e.g. RKF4(5), RKF3(4), etc. For RKF pairs of orders 5 and 6, a quintic
+    hermite spline is constructed while a septic hermite spline is used for order 7 and 8. It can be shown
+    that for a p-th order Runge-Kutta method, one can get by with dense output of order p−1 [6].
+    
+    The fifth-degree interpolant is constructed by obtaining the solution and derivative values at the
+    midpoint of each subinterval while the seventh-degree interpolant obtains the solution and derivative
+    values at the one-third and two-thirds step of each subinterval. Then the symbolic expressions for the
+    second (and third derivatives for the seventh-degree spline) are obtained in terms of the calculated values:
         
         y_n : solution value at the left endpoint
         y_n+1/3 : solution value at 1/3 of the subinterval
@@ -41,10 +45,13 @@ class RKF:
         f_n+1 : derivative value at the right endpoint
         
     Symbolic Python (SymPy) is used for this purpose. Finally, SciPy's BPoly.from_derivatives
-    is used t0 create the higher-order splines after calculating the required higher derivatives
+    is used to create the higher-order splines after calculating the required higher derivatives
     at the nodes.
     
-    A more robust PI stepsize control as described in [6-7] is implemented for adaptive stepsize control.
+    A more robust PI stepsize control as described in [7-8] is implemented for adaptive stepsize control.
+    
+    It is important to note that Fehlberg's pairs fail in pure quadrature problems and their error-estimating
+    strategies could lead to poor step size control should the leading error term not be dominant [9-10].
     
     
     IMPORTANT NOTE (1:16 PM, 2022-07-19) : 
@@ -87,18 +94,40 @@ class RKF:
         Minimum stepsize. If not given, then the stepsize has essentially no lower bound. The integration will be
         terminated and a ValueError raised when the stepsize h becomes very small i.e. smaller then 1000*EPS = 2.22e-13.
     
-    order : {5, 8}, optional
-        The order of the method to use. 5 corresponds to the RK5(4) pair while 8 uses the RK8(7) pair
+    order : {1, 2, 3, 4, 5, 6, 7, 8}, optional
+        The order of the method to use:
+            
+            1 : RKF1(2) pair in Table XIV of [1]
+            
+            2 : RKF2(3) pair in Table XI of [1]
+            
+            3 : RKF3(4) pair in Table VIII Formula 2 of [1]
+            
+            4 (default) : RK4(5) pair in Table III Formula 2 of [1]
+            
+            5 : RKF5(6) pair in Table II of [2]
+            
+            6 : RKF6(7) pair in Table VIII of [2]
+            
+            7 : RKF7(8) in Table X of [2]
+            
+            8 : RKF8(9) in Table XII of [2]
+                The utility of this pair is very limited within floating point accuracy [11].
+                When solving the test problem:
+                    
+                    dy2 / dt2 = -y, with y0 = 1 and yp0 = 1 and analytical solution of
+                    y(t) = sin(t) + cos(t)
+                
+                this RKF8(9) pair takes larger stepsizes than the RKF7(8) for stringent
+                accurancy requirements e.g. rtol=5e-13 and atol=0, but its accuracy is
+                capped at magnitudes of 1e-6 while the RKF7(8) pair achieves accuracy
+                at magnitudes of 1e-12. This can be attributed to catastrophic subtractive
+                cancellation as a result of double-precision numbers being insufficient for
+                RK pairs of order greater than 8.
+                
     
     rtol, atol : float or array_like, optional
-        Relative and absolute tolerances. If not given, then default tolerances depending on the order
-        of the methods are used; 1e-4 and 1e-7 relative and absolute toleranes are used for 5th-order
-        while 1e-7 and 1e-10 relative and absolute tolerances are used for 8th-order method.
-    
-    PI_controller : boolean, optional
-        Enable or disable the use of a PI stepsize controller. PI controller is more robust for stiffer problems
-        and results in fewer step rejections and a smoother solution than otherwise.
-        On the other hand, non-PI controller is faster on the "easy" parts of the solution.
+        Relative and absolute tolerances.
     
     dense_output : boolean, optional
         Whether to compute and output spline interpolants or not. The interpolants are computed "lazily" i.e.
@@ -120,7 +149,7 @@ class RKF:
         y : ndarray, shape (n_points, n)
             Solution values at t.
             
-        sol : scipy.interpolate.BPoly instance
+        sol : scipy.interpolate.CubicHermiteSpline or scipy.interpolate.BPoly instance
             The hermite spline interpolant
             
         accepted_steps : integer
@@ -137,22 +166,26 @@ class RKF:
     [3] J.R. Dormand, P.J. Prince, A family of embedded Runge-Kutta formulae, Journal of Computational and Applied Mathematics, Volume 6, Issue 1, 1980, Pages 19-26, ISSN 0377-0427, https://doi.org/10.1016/0771-050X(80)90013-3. (https://www.sciencedirect.com/science/article/pii/0771050X80900133)
     [4] L.F. Shampine, Global error estimation with one-step methods, Computers & Mathematics with Applications, Volume 12, Issue 7, Part A, 1986, Pages 885-894, ISSN 0898-1221, https://doi.org/10.1016/0898-1221(86)90032-5. (https://www.sciencedirect.com/science/article/pii/0898122186900325)
     [5] Jackson, K. R., et al. “A Theoretical Criterion for Comparing Runge-Kutta Formulas.” SIAM Journal on Numerical Analysis, vol. 15, no. 3, 1978, pp. 618–41. JSTOR, http://www.jstor.org/stable/2156590. Accessed 21 Jul. 2022.
-    [6] GUSTAFSSON, K , LUNDH, M , AND SODERLIND, G. A PI stepslze control for the numerical solution of ordinary differential equations, BIT 28, 2 (1988), 270-287.
-    [7] GUSTAFSSON,K. 1991. Control theoretic techniques for stepsize selection in explicit RungeKutta methods. ACM Trans. Math. Softw. 174 (Dec.) 533-554.
-
+    [6] J. M. (https://scicomp.stackexchange.com/users/127/j-m), Intermediate values (interpolation) after Runge-Kutta calculation, URL (version: 2013-05-24): https://scicomp.stackexchange.com/q/7363
+    [7] GUSTAFSSON, K , LUNDH, M , AND SODERLIND, G. A PI stepslze control for the numerical solution of ordinary differential equations, BIT 28, 2 (1988), 270-287.
+    [8] GUSTAFSSON,K. 1991. Control theoretic techniques for stepsize selection in explicit RungeKutta methods. ACM Trans. Math. Softw. 174 (Dec.) 533-554.
+    [9] J.R. Dormand, M.E.A. El-Mikkwy and P.J. Prince, Higher order embedded Runge-Kutta-Nystrom formulae, IMA J. Numer. Anal. 8 (1987) 423-430.
+    [10] DORMAND J. R. & PRINCE P.J. : "New Runge-Kutta algorithms for numerical simulation in dynamical astronomy", Celestial Mechanics, 18, 223-232, 1978.
+    [11] Rackauckas, C. (https://scicomp.stackexchange.com/questions/14433/constructing-explicit-runge-kutta-methods-of-order-9-and-higher), Constructing explicit Runge Kutta methods of order 9 and higher, Jun 19, 2017 at 1:37
     """
-    def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=5, rtol=None, atol=None, PI_controller=True, dense_output=True, maxiter=10**5, args=None):
+    def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=4, rtol=1e-3, atol=1e-6, dense_output=True, maxiter=10**5, args=None):
         
         y0, rtol, atol = self._validate_tol(y0, order, rtol, atol)
         
         tspan, h, hmax, hmin = self._validate_tspan(tspan, h, hmax, hmin)
         
-        fun = self._validate_fun(fun, PI_controller, dense_output, args)
+        fun = self._validate_fun(fun, dense_output, args)
         
         if type(maxiter)!=int or maxiter<1:
             raise ValueError('maxiter must be a positive integer.')
         
-        t, y, f, hacc, hrej = self._integrate(fun, tspan, y0, h, hmax, hmin, order, rtol, atol, PI_controller, maxiter)
+        self.C, self.A, self.B, self.E, self.FSAL = self._rkf_tableau(order)
+        t, y, f, hacc, hrej = self._integrate(fun, tspan, y0, h, hmax, hmin, order, rtol, atol, maxiter)
         
         if dense_output:
             sol = self._spline_interpolant(fun, t, y, f, order)
@@ -167,59 +200,33 @@ class RKF:
     def __repr__(self):
         attrs = ['t','y','sol','accepted_steps','rejected_steps']
         m = max(map(len,attrs)) + 1
-        return '\n'.join([a.rjust(m) + ': ' + repr(getattr(self,a)) for a in attrs])
-    
-    
-    @staticmethod
-    def _rkf_tableau(order):
-        if order==5:
-            C = np.array([1/4, 3/8, 12/13, 1, 1/2])
-            A = np.array([
-                [1/4, *[0]*4],
-                [3/32, 9/32, *[0]*3],
-                [1932/2197, -7200/2197, 7296/2197, 0, 0],
-                [439/216, -8, 3680/513, -845/4104, 0],
-                [-8/27, 2, -3544/2565, 1859/4104, -11/40]
-                ])
-            B = np.array([16/135, 0, 6656/12825, 28561/56430, -9/50, 2/55])
-            E = np.array([-1/360, 0, 128/4275, 2197/75240, -1/50, -2/55])
-        else:
-            C = np.array([2/27, 1/9, 1/6, 5/12, 1/2, 5/6, 1/6, 2/3, 1/3, 1, 0, 1])
-            A = np.array([
-                [2/27, *[0]*11],
-                [1/36, 1/12, *[0]*10],
-                [1/24, 0, 1/8, *[0]*9],
-                [5/12, 0, -25/16, 25/16, *[0]*8],
-                [1/20, 0, 0, 1/4, 1/5, *[0]*7],
-                [-25/108, 0, 0, 125/108, -65/27, 125/54, *[0]*6],
-                [31/300, 0, 0, 0, 61/225, -2/9, 13/900, *[0]*5],
-                [2, 0, 0, -53/6, 704/45, -107/9, 67/90, 3, *[0]*4],
-                [-91/108, 0, 0, 23/108, -976/135, 311/54, -19/60, 17/6, -1/12, *[0]*3],
-                [2383/4100, 0, 0, -341/164, 4496/1025, -301/82, 2133/4100, 45/82, 45/164, 18/41, *[0]*2],
-                [3/205, 0, 0, 0, 0, -6/41, -3/205, -3/41, 3/41, 6/41, 0, 0],
-                [-1777/4100, 0, 0, -341/164, 4496/1025, -289/82, 2193/4100, 51/82, 33/164, 12/41, 0, 1]
-                ])
-            B = np.array([0, 0, 0, 0, 0, 34/105, 9/35, 9/35, 9/280, 9/280, 0, 41/840, 41/840])
-            E = 41/840*np.array([1, *[0]*9, 1, -1, -1])
-        return C, A, B, E
-    
+        return '\n'.join([a.rjust(m) + ': ' + repr(getattr(self,a)) for a in attrs])    
     
     def _rkf_step(self, fun, t_old, y_old, f_old, order, h):
-        C, A, B, E = self._rkf_tableau(order)
+        C, A, B, E, FSAL = self.C, self.A, self.B, self.E, self.FSAL
         stages = A.shape[0]
         states = len(y_old)
-        K = np.zeros(( stages+1, states ))
+        K = np.zeros(( stages, states ))
         K[0] = f_old
-        for i in range(1,stages+1):
-            K[i] = fun(t_old + C[i-1]*h,
-                       y_old + h * A[i-1,:i] @ K[:i]
-                       )
-        y_new = y_old + h * B @ K
-        t_new = t_old + h
-        f_new = fun(t_new,y_new)
+        if FSAL:
+            for i in range(1,stages-1):
+                K[i] = fun(t_old + C[i]*h,
+                           y_old + h * A[i,:i] @ K[:i]
+                           )
+                y_new = y_old + h * B[:-1] @ K[:-1]
+                t_new = t_old + h
+                f_new = fun(t_new,y_new)
+                K[-1] = f_new
+        else:
+            for i in range(1,stages):
+                K[i] = fun(t_old + C[i]*h,
+                           y_old + h * A[i,:i] @ K[:i]
+                           )
+                y_new = y_old + h * B @ K
+                t_new = t_old + h
+                f_new = fun(t_new,y_new)
         err = h * E @ K
         return t_new, y_new, f_new, err
-    
     
     @staticmethod
     def _scaled_error_norm(y_old, y_new, err, rtol, atol):
@@ -227,38 +234,31 @@ class RKF:
         error_norm = RMS(err/sc)
         return error_norm
     
-    
     @staticmethod
     def _compute_first_step(fun, t0, y0, f0, order, rtol, atol):
-        scale = atol + np.abs(y0) * rtol
-        d0 = RMS(y0 / scale)
-        d1 = RMS(f0 / scale)
-        if d0 < 1e-5 or d1 < 1e-5:
-            h0 = 1e-6
-        else:
-            h0 = 0.01 * d0 / d1
-
-        y1 = y0 + h0 * f0
-        f1 = fun(t0 + h0, y1)
-        d2 = RMS((f1 - f0) / scale) / h0
-
-        if d1 <= 1e-15 and d2 <= 1e-15:
+        sc = atol + np.abs(y0) * rtol
+        h0 = .01 * RMS(
+            sc / ( atol + rtol * np.abs(f0) )
+            )
+        y1 = y0 + h0*f0
+        t1 = t0 + h0
+        f1 = fun(t1,y1)
+        fdot0 = (f1-f0)/h0
+        LTE = RMS(100 * fdot0 / sc)
+        if LTE<=1e-12:
             h1 = max(1e-6, h0 * 1e-3)
         else:
-            h1 = (0.01 / max(d1, d2)) ** (1 / order)
-
-        return min(100 * h0, h1)
+            h1 = LTE ** (-1/(order+1))
+        return min(1e2 * h0, h1)    
     
-    
-    def _integrate(self, fun, tspan, y0, h, hmax, hmin, order, rtol, atol, PI_controller, maxiter):
+    def _integrate(self, fun, tspan, y0, h, hmax, hmin, order, rtol, atol, maxiter):
         MAX_FACTOR = 10.
         MIN_FACTOR = .1
         SAFETY = .9
-        EXPONENT = -1/order
+        EXPONENT = -1/(order+1)
         KI = -.7/order
         KP = .4/order
         
-        fun = lambda t, y, fun=fun: np.atleast_1d( fun(t,y) )
         t0, tf = tspan
         y0 = np.atleast_1d(y0)
         f0 = fun(t0,y0)
@@ -295,6 +295,7 @@ class RKF:
                 t = np.hstack(( t, t_new ))
                 y = np.vstack(( y, y_new ))
                 f = np.vstack(( f, f_new ))
+                hacc += 1
                 break
             
             t_new, y_new, f_new, err = self._rkf_step(fun, t_old, y_old, f_old, order, h)
@@ -304,7 +305,7 @@ class RKF:
                 if error_norm == 0:
                     FAC = MAX_FACTOR
                 else:
-                    if first_step or PI_controller==False:
+                    if first_step:
                         FAC = min(MAX_FACTOR, SAFETY * error_norm ** EXPONENT)
                         first_step = False
                     else:
@@ -335,51 +336,52 @@ class RKF:
         
         return t, y, f, hacc, hrej
     
-    
     def _spline_interpolant(self, fun, t, y, f, order):
-        steps = t.size - 1
-        h = t[1:] - t[:-1]
-        k = y.shape[1]
-        if order==5:
-            y_mid = np.zeros((steps, k))
-            f_mid = np.zeros_like(y_mid)
-            d2y = np.zeros_like(f)
-            for i in range(steps):
-                _, y_mid[i], f_mid[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, .5*h[i])
-                d2y[i] = (-46*y[i] + 32*y_mid[i] + 14*y[i+1]) / h[i]**2 - (12*f[i] + 16*f_mid[i] + 2*f[i+1]) / h[i]
-            d2y[-1] = (14*y[-2] + 32*y_mid[-1] - 46*y[-1]) / h[-1]**2 + (2*f[-2] + 16*f_mid[-1] + 12*f[-1]) / h[-1]
-            Y = np.zeros((t.size, 3, k))
-            Y[:,0,:] = y
-            Y[:,1,:] = f
-            Y[:,2,:] = d2y
+        if order<5:
+            return CHS(t, y, f)
         else:
-            y13 = np.zeros(( steps, k ))
-            y23 = np.zeros_like(y13)
-            f13 = np.zeros_like(y13)
-            f23 = np.zeros_like(y13)
-            d2y = np.zeros_like(f)
-            d3y = np.zeros_like(f)
+            steps = t.size - 1
+            h = t[1:] - t[:-1]
+            k = y.shape[1]
+            if order>4 and order<7:
+                y_mid = np.zeros((steps, k))
+                f_mid = np.zeros_like(y_mid)
+                d2y = np.zeros_like(f)
+                for i in range(steps):
+                    _, y_mid[i], f_mid[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, .5*h[i])
+                    d2y[i] = (-46*y[i] + 32*y_mid[i] + 14*y[i+1]) / h[i]**2 - (12*f[i] + 16*f_mid[i] + 2*f[i+1]) / h[i]
+                d2y[-1] = (14*y[-2] + 32*y_mid[-1] - 46*y[-1]) / h[-1]**2 + (2*f[-2] + 16*f_mid[-1] + 12*f[-1]) / h[-1]
+                Y = np.zeros((t.size, 3, k))
+                Y[:,0,:] = y
+                Y[:,1,:] = f
+                Y[:,2,:] = d2y
+            else:
+                y13 = np.zeros(( steps, k ))
+                y23 = np.zeros_like(y13)
+                f13 = np.zeros_like(y13)
+                f23 = np.zeros_like(y13)
+                d2y = np.zeros_like(f)
+                d3y = np.zeros_like(f)
+                
+                for i in range(steps):
+                    _, y13[i], f13[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, 1/3*h[i])
+                    _, y23[i], f23[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, 2/3*h[i])
+                    d2y[i] = (-291/2*y[i] + 0*y13[i] + 243/2*y23[i] + 24*y[i+1]) / h[i]**2 - (22*f[i] + 54*f13[i] + 27*f23[i] + 2*f[i+1]) / h[i]
+                    d3y[i] = (5073/2*y[i] + 1458*y13[i] - 6561/2*y23[i] - 714*y[i+1]) / h[i]**3 + (579/2*f[i] + 1296*f13[i] + 1539/2*f23[i] + 60*f[i+1]) / h[i]**2
+                
+                d2y[-1] = (24*y[-2] + 243/2*y13[-1] + 0*y23[-1] - 291/2*y[-1]) / h[-1]**2 + (2*f[-2] + 27*f13[-1] + 54*f23[-1] + 22*f[-1]) / h[-1]
+                d3y[-1] = (714*y[-2] + 6561/2*y13[-1] - 1458*y23[-1] - 5073/2*y[-1]) / h[-1]**3 + (60*f[-2] + 1539/2*f13[-1] + 1296*f23[-1] + 579/2*f[-1]) / h[-1]**2
             
-            for i in range(steps):
-                _, y13[i], f13[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, 1/3*h[i])
-                _, y23[i], f23[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, 2/3*h[i])
-                d2y[i] = (-291/2*y[i] + 0*y13[i] + 243/2*y23[i] + 24*y[i+1]) / h[i]**2 - (22*f[i] + 54*f13[i] + 27*f23[i] + 2*f[i+1]) / h[i]
-                d3y[i] = (5073/2*y[i] + 1458*y13[i] - 6561/2*y23[i] - 714*y[i+1]) / h[i]**3 + (579/2*f[i] + 1296*f13[i] + 1539/2*f23[i] + 60*f[i+1]) / h[i]**2
+                Y = np.zeros((t.size, 4, k))
+                Y[:,0,:] = y
+                Y[:,1,:] = f
+                Y[:,2,:] = d2y
+                Y[:,3,:] = d3y
             
-            d2y[-1] = (24*y[-2] + 243/2*y13[-1] + 0*y23[-1] - 291/2*y[-1]) / h[-1]**2 + (2*f[-2] + 27*f13[-1] + 54*f23[-1] + 22*f[-1]) / h[-1]
-            d3y[-1] = (714*y[-2] + 6561/2*y13[-1] - 1458*y23[-1] - 5073/2*y[-1]) / h[-1]**3 + (60*f[-2] + 1539/2*f13[-1] + 1296*f23[-1] + 579/2*f[-1]) / h[-1]**2
-            
-            Y = np.zeros((t.size, 4, k))
-            Y[:,0,:] = y
-            Y[:,1,:] = f
-            Y[:,2,:] = d2y
-            Y[:,3,:] = d3y
-        
-        return BPoly.from_derivatives(t, Y)
-    
+            return BPoly.from_derivatives(t, Y)
     
     @staticmethod
-    def _validate_fun(fun, PI_controller, dense_output, args):
+    def _validate_fun(fun, dense_output, args):
         if args is not None:
             if isinstance(args, tuple) or isinstance(args, list) and len(args)>0:
                 fun = lambda t, y, fun=fun: np.atleast_1d( fun(t, y, *args) )
@@ -387,9 +389,6 @@ class RKF:
                 raise ValueError('args must be a tuple or list with at least length of 1.')
         else:
             fun = lambda t, y, fun=fun: np.atleast_1d( fun(t, y) )
-        
-        if type(PI_controller)!=bool:
-            raise TypeError('Argument PI_controller must be a boolean.')
         
         if type(dense_output)!=bool:
             raise TypeError('Argument dense_output must be a boolean.')
@@ -432,7 +431,6 @@ class RKF:
         
         return tspan, h, hmax, hmin
     
-    
     @staticmethod
     def _validate_tol(y0, order, rtol, atol):
         y0 = np.atleast_1d(y0)
@@ -443,40 +441,319 @@ class RKF:
         else:
             pass
         
-        if order not in [5,8]:
-            raise Exception('Value of order must be 5 or 8.')
+        if order not in [1,2,3,4,5,6,7,8]:
+            raise Exception(f'Value of order must be in {[1,2,3,4,5,6,7,8]}')
         
-        if rtol is None:
-            rtol = {5:1e-4, 8:1e-7}[order]
+        rtol = np.asarray(rtol)
+        if rtol.ndim > 1:
+            raise ValueError('rtol must be a scalar or vector (1d) of compatible shape.')
+        elif rtol.ndim==1 and rtol.size!=y0.size:
+            raise ValueError('If rtol is a vector, it must have the same size as y0.')
+        elif rtol.dtype!=float:
+            raise TypeError(f'dtype of rtol must be {float}')
+        elif np.any(rtol<0):
+            raise ValueError('rtol values must be positive.')
+        elif np.any(rtol<1e3*EPS):
+            warn(f'rtol value/s too small, setting to {1e3*EPS}')
+            rtol = np.where(rtol<1e3*EPS, 1e3*EPS, rtol)
         else:
-            rtol = np.asarray(rtol)
-            if rtol.ndim > 1:
-                raise ValueError('rtol must be a scalar or vector (1d) of compatible shape.')
-            elif rtol.ndim==1 and rtol.size!=y0.size:
-                raise ValueError('If rtol is a vector, it must have the same size as y0.')
-            elif rtol.dtype not in [int, float]:
-                raise TypeError('dtype of rtol must be int or float.')
-            elif np.any(rtol<0):
-                raise ValueError('rtol values must be nonnegative.')
-            elif np.any(rtol<1e3*EPS):
-                warn(f'rtol value/s too small, setting to {1e3*EPS}')
-                rtol = np.where(rtol<1e3*EPS, 1e3*EPS, rtol)
-            else:
-                pass
+            pass
         
-        if atol is None:
-            atol = {5:1e-7, 8:1e-10}[order]
+        atol = np.asarray(atol)
+        if atol.ndim > 1:
+            raise ValueError('atol must be a scalar or vector (1d) of compatible shapes.')
+        elif atol.ndim==1 and atol.size!=y0.size:
+            raise ValueError('If atol is a vector, it must have the same size as y0.')
+        elif atol.dtype!=float:
+            raise TypeError(f'dtype of atol must be {float}')
+        elif np.any(atol<0):
+            raise ValueError('atol values must be nonnegative.')
         else:
-            atol = np.asarray(atol)
-            if atol.ndim > 1:
-                raise ValueError('atol must be a scalar or vector (1d) of compatible shapes.')
-            elif atol.ndim==1 and atol.size!=y0.size:
-                raise ValueError('If atol is a vector, it must have the same size as y0.')
-            elif atol.dtype not in [int, float]:
-                raise TypeError('dtype of atol must be int or float.')
-            elif np.any(atol<0):
-                raise ValueError('atol values must be nonnegative.')
-            else:
-                pass
+            pass
         
         return y0, rtol, atol
+    
+    @staticmethod
+    def _rkf_tableau(order):
+        """
+        B denotes the coefficients of the formula used to advance the integration
+        while BCAP is the embedded method for error estimation. Fehlberg's pairs
+        as implemented here don't perform local extrapolation. Hence, B and BCAP
+        are the lower and higher-order formulas, respectively. Local extrapolation
+        is not performed because Fehlberg's RK1(2), RK2(3), and RK3(4) pairs are FSAL
+        when using the lower-order formula; and the RK8(9) pair doesn't give the higher
+        9th-order pair, but only the lower, 8th-order pair and the error coefficients.
+        """
+        if order==1:
+            FSAL = True
+            C = np.array([0, 1/2, 1])
+            A = np.array([
+                [0, 0, 0],
+                [1/2, 0, 0],
+                [1/256, 255/256, 0]
+                ])
+            B = A[-1]
+            BCAP = np.array([1/512, 255/256, 1/512])
+        elif order==2:
+            FSAL = True
+            C = np.array([0, 1/4, 27/40, 1])
+            A = np.zeros((4,4))
+            A[1,:1] = [1/4]
+            A[2,:2] = [-189/800, 729/800]
+            A[3,:3] = [214/891, 1/33, 650/891]
+            B = A[-1]
+            BCAP = np.array([533/2106, 0, 800/1053, -1/78])
+        elif order==3:
+            FSAL = True
+            C = np.array([0, 2/7, 7/15, 35/38, 1])
+            A = np.zeros((5,5))
+            A[1,:1] = [2/7]
+            A[2,:2] = [77/900, 343/900]
+            A[3,:3] = [805/1444, -77175/54872, 97125/54872]
+            A[4,:4] = [79/490, 0, 2175/3626, 2166/9065]
+            B = A[-1]
+            BCAP = np.array([229/1470, 0, 1125/1813, 13718/81585, 1/18])
+        elif order==4:
+            FSAL = False
+            C = np.array([0, 1/4, 3/8, 12/13, 1, 1/2])
+            A = np.zeros((6,6))
+            A[1,:1] = [1/4]
+            A[2,:2] = [3/32, 9/32]
+            A[3,:3] = [1932/2197, -7200/2197, 7296/2197]
+            A[4,:4] = [439/216, -8, 3680/513, -845/4104]
+            A[5,:5] = [-8/27, 2, -3544/2565, 1859/4104, -11/40]
+            B = np.array([25/216, 0, 1408/2565, 2197/4104, -1/5, 0])
+            BCAP = np.array([16/135, 0, 6656/12825, 28561/56430, -9/50, 2/55])
+        elif order==5:
+            FSAL = False
+            C = np.array([0, 1/6, 4/15, 2/3, 4/5, 1, 0, 1])
+            A = np.zeros((8,8))
+            A[1,:1] = [1/6]
+            A[2,:2] = [4/75, 16/75]
+            A[3,:3] = [5/6, -8/3, 5/2]
+            A[4,:4] = [-8/5, 144/25, -4, 16/25]
+            A[5,:5] = [361/320, -18/5, 407/128, -11/80, 55/128]
+            A[6,:6] = [-11/640, 0, 11/256, -11/160, 11/256, 0]
+            A[7,:7] = [93/640, -18/5, 803/256, -11/160, 99/256, 0, 1]
+            B = np.array([31/384, 0, 1125/2816, 9/32, 125/768, 5/66, 0, 0])
+            BCAP = np.array([7/1408, 0, 1125/2816, 9/32, 125/768, 0, 5/66, 5/66])
+        elif order==6:
+            FSAL = False
+            C = np.array([0, 2/33, 4/33, 2/11, 1/2, 2/3, 6/7, 1, 0, 1])
+            A = np.zeros((10,10))
+            A[1,:1] = [2/33]
+            A[2,:2] = [0, 4/33]
+            A[3,:3] = [1/22, 0, 3/22]
+            A[4,:4] = [43/64, 0, -165/64, 77/32]
+            A[5,:5] = [-2383/486, 0, 1067/54, -26312/1701, 2176/1701]
+            A[6,:6] = [10077/4802, 0, -5643/686, 116259/16807, -6240/16807, 1053/2401]
+            A[7,:7] = [-733/176, 0, 141/8, -335763/23296, 216/77, -4617/2816, 7203/9152]
+            A[8,:8] = [15/352, 0, 0, -5445/46592, 18/77, -1215/5632, 1029/18304, 0]
+            A[9,:9] = [-1833/352, 0, 141/8, -51237/3584, 18/7, -729/512, 1029/1408, 0, 1]
+            B = np.array([
+                77/1440, 0, 0, 1771561/6289920, 32/105, 243/2560,
+                16807/74880, 11/270, 0, 0
+                ])
+            BCAP = np.array([
+                11/864, 0, 0, 1771561/6289920, 32/105, 243/2560,
+                16807/74880, 0, 11/270, 11/270
+                ])
+        elif order==7:
+            FSAL = False
+            C = np.array([0, 2/27, 1/9, 1/6, 5/12, 1/2, 5/6, 1/6, 2/3, 1/3, 1, 0, 1])
+            A = np.zeros((13,13))
+            A[1,:1] = [2/27]
+            A[2,:2] = [1/36, 1/12]
+            A[3,:3] = [1/24, 0, 1/8]
+            A[4,:4] = [5/12, 0, -25/16, 25/16]
+            A[5,:5] = [1/20, 0, 0, 1/4, 1/5]
+            A[6,:6] = [-25/108, 0, 0, 125/108, -65/27, 125/54]
+            A[7,:7] = [31/300, 0, 0, 0, 61/225, -2/9, 13/900]
+            A[8,:8] = [2, 0, 0, -53/6, 704/45, -107/9, 67/90, 3]
+            A[9,:9] = [-91/108, 0, 0, 23/108, -976/135, 311/54,
+                       -19/60, 17/6, -1/12]
+            A[10,:10] = [2383/4100, 0, 0, -341/164, 4496/1025,
+                         -301/82, 2133/4100, 45/82, 45/164, 18/41]
+            A[11,:11] = [3/205, 0, 0, 0, 0, -6/41, -3/205, -3/41, 3/41, 6/41, 0]
+            A[12,:12] = [-1777/4100, 0, 0, -341/164, 4496/1025,
+                         -289/82, 2193/4100, 51/82, 33/164, 12/41, 0, 1]
+            B = np.array([
+                41/840, 0, 0, 0, 0, 34/105, 9/35, 9/35,
+                9/280, 9/280, 41/840, 0, 0
+                ])
+            BCAP = np.array([
+                0, 0, 0, 0, 0, 34/105, 9/35, 9/35,
+                9/280, 9/280, 0, 41/840, 41/840
+                ])
+        elif order==8:
+            FSAL = False
+            C = np.array([
+                0,
+                .44368940376498183109599404281370,
+                .66553410564747274664399106422055,
+                .99830115847120911996598659633083,
+                .3155,
+                .50544100948169068626516126737384,
+                .17142857142857142857142857142857,
+                .82857142857142857142857142857143,
+                .66543966121011562534953769255586,
+                .24878317968062652069722274560771,
+                .109,
+                .891,
+                .3995,
+                .6005,
+                1,
+                0,
+                1
+                ])
+            A = np.zeros((17,17))
+            A[1,:1] = [.44368940376498183109599404281370]
+            A[2,:2] = [
+                .16638352641186818666099776605514,
+                .49915057923560455998299329816541,
+                ]
+            A[3,:3] = [
+                .24957528961780227999149664908271,
+                0,
+                .74872586885340683997448994724812
+                ]
+            A[4,:4] = [
+                .20661891163400602426556710393185,
+                0,
+                .17707880377986347040380997288319,
+                -.68197715413869494669377076815048e-1
+                ]
+            A[5,:5] = [
+                .10927823152666408227903890926157,
+                0,
+                0,
+                .40215962642367995421990563690087e-2,
+                .39214118169078980444392330174325
+                ]
+            A[6,:6] = [
+                .98899281409164665304844765434355e-1,
+                0,
+                0,
+                .35138370227963966951204487356703e-2,
+                .12476099983160016621520625872489,
+                -.55745546834989799643742901466348e-1
+                ]
+            A[7,:7] = [
+                -.36806865286242203724153101080691,
+                0,
+                0,
+                0,
+                -.22273897469476007645024020944166e+1,
+                .13742908256702910729565691245744e+1,
+                .20497390027111603002159354092206e+1
+                ]
+            A[8,:8] = [
+                .45467962641347150077351950603349e-1,
+                0, 0, 0, 0,
+                .32542131701589147114677469648853,
+                .28476660138527908888182420573687,
+                .97837801675979152435868397271099e-2
+                ]
+            A[9,:9] = [
+                .60842071062622057051094145205182e-1,
+                0, 0, 0, 0,
+                -.21184565744037007526325275251206e-1,
+                .19596557266170831957464490662983,
+                -.42742640364817603675144835342899e-2,
+                .17434365736814911965323452558189e-1
+                ]
+            A[10,:10] = [
+                .54059783296931917365785724111182e-1,
+                0, 0, 0, 0, 0,
+                .11029825597828926530283127648228,
+                -.12565008520072556414147763782250e-2,
+                .36790043477581460136384043566339e-2,
+                -.57780542770972073040840628571866e-1,
+                ]
+            A[11,:11] = [
+                .12732477068667114646645181799160,
+                0, 0, 0, 0, 0, 0,
+                .11448895006396105323658875721817,
+                .28773020709697992776202201849198,
+                .50945379459611363153735885079465,
+                -.14799682244372575900242144449640
+                ]
+            A[12,:12] = [
+                -.36526793876616740535848544394333e-2,
+                0, 0, 0, 0,
+                .81629896012318919777819421247030e-1,
+                -.38607735635693506490517694343215,
+                .30862242924605106450474166025206e-1,
+                -.58077254528320602815829374733518e-1,
+                .33598659328884971493143451362322,
+                .41066880401949958613549622786417,
+                -.11840245972355985520633156154536e-1
+                ]
+            A[13,:13] = [
+                -.12375357921245143254979096135669e+1,
+                0, 0, 0, 0,
+                -.24430768551354785358734861366763e+2,
+                .54779568932778656050436528991173,
+                -.44413863533413246374959896569346e+1,
+                .10013104813713266094792617851022e+2,
+                -.14995773102051758447170985073142e+2,
+                .58946948523217073620824539651427e+1,
+                .17380377503428984877616857440542e+1,
+                .27512330693166730263758622860276e+2
+                ]
+            A[14,:14] = [
+                -.35260859388334522700502958875588,
+                0, 0, 0, 0,
+                -.18396103144848270375044198988231,
+                -.65570189449741645138006879985251,
+                -.39086144880439863435025520241310,
+                .26794646712850022936584423271209,
+                -.10383022991382490865769858507427e+1,
+                .16672327324258671664727346168501e+1,
+                .49551925855315977067732967071441,
+                .11394001132397063228586738141784e+1,
+                .51336696424658613688199097191534e-1
+                ]
+            A[15,:15] = [
+                .10464847340614810391873002406755e-2,
+                0, 0, 0, 0, 0, 0, 0,
+                -.67163886844990282237778446178020e-2,
+                .81828762189425021265330065248999e-2,
+                -.42640342864483347277142138087561e-2,
+                .28009029474168936545976331153703e-3,
+                -.87835333876238676639057813145633e-2,
+                .10254505110825558084217769664009e-1,
+                0
+                ]
+            A[16,:16] = [
+                -.13536550786174067080442168889966e+1,
+                0, 0, 0, 0,
+                -.18396103144848270375044198988231,
+                -.65570189449741645138006879985251,
+                -.39086144880439863435025520241310,
+                .27466285581299925758962207732989,
+                -.10464851753571915887035188572676e+1,
+                .16714967667123155012004488306588e+1,
+                .49523916825841808131186990740287,
+                .11481836466273301905225795954930e+1,
+                .41082191313833055603981327527525e-1,
+                0,
+                1
+                ]
+            B = np.zeros(17)
+            B[ [0, 8, 9, 10, 11, 12, 13, 14] ] = [
+                .32256083500216249913612900960247e-1,
+                .25983725283715403018887023171963,
+                .92847805996577027788063714302190e-1,
+                .16452339514764342891647731842800,
+                .17665951637860074367084298397547,
+                .23920102320352759374108933320941,
+                .39484274604202853746752118829325e-2,
+                .30726495475860640406368305522124e-1
+                ]
+        if order!=8:
+            E =  B - BCAP
+        else:
+            E = np.zeros(17)
+            E[ [0, 14, 15, 16] ] = .30726495475860640406368305522124e-1*np.array([1., 1., -1., -1.])
+        return C, A, B, E, FSAL
