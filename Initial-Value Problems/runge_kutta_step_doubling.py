@@ -26,8 +26,8 @@ class RKSD:
     because the solution and derivative values at the midpoint of each step --- that were computed
     during step-doubling --- are not thrown away, but stored and used for the estimation of the second
     derivatives at all the mesh points. In my numerical tests, this interpolant sufficiently interpolates
-    the Runge-Kutta methods from order 1 to 6. For order 7 and 8, the interpolation error is three orders of
-    magnitude greater than the integration error.
+    the Runge-Kutta methods from order 1 to 6. For order 7 and 8, the interpolation error is at most
+    three orders of magnitude greater than the integration error.
     
     It can be shown that for a p-th order Runge-Kutta method, one can get by with
     dense output of order p−1 [2].
