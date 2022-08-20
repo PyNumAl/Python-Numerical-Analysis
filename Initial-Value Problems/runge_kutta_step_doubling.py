@@ -364,20 +364,23 @@ class RKSD:
         Compute/estimate the first step for adaptive integration when an initial stepsize h is not given.
         Taken from https://github.com/scipy/scipy/blob/4cf21e753cf937d1c6c2d2a0e372fbc1dbbeea81/scipy/integrate/_ivp/common.py#L64
         """
-        sc = atol + np.abs(y0) * rtol
-        h0 = .01 * RMS(
-            sc / ( atol + rtol * np.abs(f0) )
-            )
+        sc = atol + rtol * np.abs(y0)
+        h0 = RMS(.01 * sc / ( atol + rtol * np.abs(f0) ) )
         y1 = y0 + h0*f0
-        t1 = t0 + h0
-        f1 = fun(t1,y1)
+        f1 = fun(t0 + h0, y1)
         fdot0 = (f1-f0)/h0
-        LTE = RMS(100 * fdot0 / sc)
-        if LTE<=1e-12:
-            h1 = max(1e-6, h0 * 1e-3)
+        TE = np.hstack(
+            (
+                RMS(h0 ** (order+1) * 100 * fdot0 / sc)
+                ,
+                RMS(h0*f0)
+                )
+            )
+        if np.all(TE<=1e-12):
+            h1 = max(1e-6, 1e-3*h0)
         else:
-            h1 = LTE ** (-1/(order+1))
-        return min(1e2 * h0, h1)
+            h1 = h0 * TE.max() ** (-1/(1+order))
+        return min(1e2*h0,h1)
     
     @staticmethod
     def rk_step(fun, t, y, f, h, C, A, B):
