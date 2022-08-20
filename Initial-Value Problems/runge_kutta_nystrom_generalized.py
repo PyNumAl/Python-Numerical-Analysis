@@ -1,10 +1,9 @@
 import numpy as np
-from numpy.linalg import norm
 from warnings import warn
 from scipy.interpolate import BPoly
 EPS = np.finfo(float).eps
 
-def RMS(x,axis):
+def RMS(x,axis=0):
     out = np.sqrt(
         np.mean(
             np.square(x)
@@ -265,27 +264,31 @@ class RKNG:
             atol + rtol * np.abs(yp0),
             atol + rtol * np.abs(f0)
             ])
-        b = norm(scale[1]/scale[2], np.inf)
-        c = norm(scale[0]/scale[2], np.inf)
-        h0 = np.array([
-            .01*b,
-            .5 * (-2*b + (b**2 + 8*c)**.5),
-            .5 * (-2*b - (b**2 + 8*c)**.5)
-            ])
-        h0 = max(h0[h0>0].min(), 1e-6)
+        b = RMS(scale[1]/scale[2])
+        c = RMS(scale[0]/scale[2])
+        
+        h0 = min(
+            -b + (b**2 + 2*c)**.5
+            ,
+            .01*b
+            )
         
         y1 = y0 + h0 * yp0 + .5 * h0 ** 2 * f0
         yp1 = yp0 + h0 * f0
         f1 = fun(t0 + h0, y1, yp1)
         y3p = (f1 - f0) / h0
         
-        norm1 = norm(y3p/scale[0], np.inf)
-        norm2 = norm(y3p/scale[1], np.inf)
+        norms = np.array([
+            RMS(h0*yp0 + .5*h0**2*f0),
+            RMS(h0 ** (p+1) * 1e2 * y3p / scale[0]),
+            RMS(h0*f0),
+            RMS(h0 ** (p+1) * 1e2 * y3p / scale[1])
+            ])
         
-        if norm1<=1e-15 and norm2<1e-15:
+        if np.all(norms<=1e-12):
             h1 = max(1e-6, 1e-3*h0)
         else:
-            h1 = (.01 / max(norm1, norm2)) ** (1/(p+1))
+            h1 = h0 * norms.max() ** (-1/(p+1))
         return min(100 * h0, h1)
     
     
