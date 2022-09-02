@@ -3,6 +3,9 @@ Numerical Analysis algorithms/methods in Python.
 
 # Current Implementations
 
+**Numerical Integration**
+- adaptive Newton-Cotes quadrature
+
 **Numerical Differentiation**
 - Finite Difference Coefficients Calculator
   - Lagrange polynomial method
