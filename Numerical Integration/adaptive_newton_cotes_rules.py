@@ -77,7 +77,7 @@ def quad_ancr(f, a, b, order=4, rtol=1e-6, atol=1e-10):
     [1] Adaptive Simpson's method, https://en.wikipedia.org/wiki/Adaptive_Simpson%27s_method
     [2] Wolfram Mathworld, Newton-Cotes Formulas, https://mathworld.wolfram.com/Newton-CotesFormulas.html
     """
-    if order not in list(range(2, 14, 2)):
+    if order not in range(2, 14, 2):
         raise ValueError('order argument must be among [2,4,6,8,10,12].')
     
     if type(rtol) is not float:
