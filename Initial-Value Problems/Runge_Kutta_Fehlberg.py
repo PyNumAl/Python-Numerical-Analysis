@@ -112,18 +112,19 @@ class RKF:
             7 : RKF7(8) in Table X of [2]
             
             8 : RKF8(9) in Table XII of [2]
-                The utility of this pair is very limited within floating point accuracy [11].
+                The utility of this pair might be limited within floating point accuracy [11].
                 When solving the test problem:
                     
                     dy2 / dt2 = -y, with y0 = 1 and yp0 = 1 and analytical solution of
                     y(t) = sin(t) + cos(t)
                 
                 this RKF8(9) pair takes larger stepsizes than the RKF7(8) for stringent
-                accurancy requirements e.g. rtol=5e-13 and atol=0, but its accuracy is
-                capped at magnitudes of 1e-6 while the RKF7(8) pair achieves accuracy
-                at magnitudes of 1e-12. This can be attributed to catastrophic subtractive
-                cancellation as a result of double-precision numbers being insufficient for
-                RK pairs of order greater than 8.
+                accurancy requirements e.g. rtol=1e-12 and atol=1e-12, but its accuracy is
+                severely worse than the RKF7(8) pair. After reading [12], I realize that there's
+                nothing wrong with my implementation, after double-checking the coefficients many times.
+                This method simply has quite worse accuracy than other high-order RK pairs.
+                This pair and its coefficients are also implemented in
+                (https://github.com/jacobwilliams/Fortran-Astrodynamics-Toolkit/blob/master/src/rk_module_variable_step.f90)
                 
     
     rtol, atol : float or array_like, optional
@@ -172,6 +173,7 @@ class RKF:
     [9] J.R. Dormand, M.E.A. El-Mikkwy and P.J. Prince, Higher order embedded Runge-Kutta-Nystrom formulae, IMA J. Numer. Anal. 8 (1987) 423-430.
     [10] DORMAND J. R. & PRINCE P.J. : "New Runge-Kutta algorithms for numerical simulation in dynamical astronomy", Celestial Mechanics, 18, 223-232, 1978.
     [11] Rackauckas, C. (https://scicomp.stackexchange.com/questions/14433/constructing-explicit-runge-kutta-methods-of-order-9-and-higher), Constructing explicit Runge Kutta methods of order 9 and higher, Jun 19, 2017 at 1:37
+    [12] Rocha, A. (2018). Numerical Methods and Tolerance Analysis for Orbit Propagation, https://www.sjsu.edu/ae/docs/project-thesis/Angel.Rocha.Sp18.pdf
     """
     def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=4, rtol=1e-3, atol=1e-6, dense_output=True, maxiter=10**5, args=None):
         
@@ -237,13 +239,23 @@ class RKF:
     @staticmethod
     def _compute_first_step(fun, t0, y0, f0, order, rtol, atol):
         sc = atol + rtol * np.abs(y0)
-        h0 = RMS(.01 * sc / ( atol + rtol * np.abs(f0) ) )
+        h0 = max(
+            1e-6,
+            RMS(.01 * sc) / RMS(
+                np.maximum(
+                    1e-8,
+                    atol + rtol * np.abs(f0)
+                    )
+                )
+            )
         y1 = y0 + h0*f0
         f1 = fun(t0 + h0, y1)
         fdot0 = (f1-f0)/h0
         TE = np.hstack(
             (
-                RMS(h0 ** (order+1) * 100 * fdot0 / sc)
+                RMS(
+                    h0 ** (order+1) * 100 * fdot0 / np.maximum(1e-8, sc)
+                    )
                 ,
                 RMS(h0*f0)
                 )
@@ -448,6 +460,7 @@ class RKF:
             raise Exception(f'Value of order must be in {[1,2,3,4,5,6,7,8]}')
         
         rtol = np.asarray(rtol)
+        min_rtol = 1e3*EPS
         if rtol.ndim > 1:
             raise ValueError('rtol must be a scalar or vector (1d) of compatible shape.')
         elif rtol.ndim==1 and rtol.size!=y0.size:
@@ -456,9 +469,9 @@ class RKF:
             raise TypeError(f'dtype of rtol must be {float}')
         elif np.any(rtol<0):
             raise ValueError('rtol values must be positive.')
-        elif np.any(rtol<1e3*EPS):
-            warn(f'rtol value/s too small, setting to {1e3*EPS}')
-            rtol = np.where(rtol<1e3*EPS, 1e3*EPS, rtol)
+        elif np.any(rtol<min_rtol):
+            warn(f'rtol value/s too small, setting to {min_rtol}')
+            rtol = np.where(rtol<min_rtol, min_rtol, rtol)
         else:
             pass
         
