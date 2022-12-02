@@ -1,0 +1,141 @@
+Runge-Kutta (4,5) Pair by Cash-Karp
+
+This implementation performs local extrapolation which practical results show to be more preferable (Shampine et al, 1976; Jackson et al, 1977).
+The 4th order interpolant is obtained by applying the Nystrom transformation algorithm (Sharp, Fine, 1992) to obtain the 
+Transformed Nystrom (4,5) pair version of CK5(4). This directly solves general second order differential equations of the form
+y" = f(t, y, y'). If the 2nd derivative function is independent of y, then the resulting 2nd order ODE is equivalent to a first order
+ODE by the change of variables, u=y', leading to u'=f(t,u).
+
+A two-point quintic hermite interpolant can be constructed from the known values yn, y'n, y"n, yn+1, y'n+1, and y"n+1.
+The quintic hermite spline interpolant is derived in terms of the stages, k1 to k7, and differentiated.
+This yields the quartic polynomial that interpolates the derivative y' (or u). Evaluating at the midpoint yields a 4th order accurate result.
+The interpolant weights are obtained by collecting terms, k1 to k7, of the 4th order derivative interpolant. 
+
+
+References
+--------
+JACKSON K. R., ENRIGHT W. H. and HULL T. E. : "A theoretical criterion for comparing Runge-Kutta formulas", Technical Report, No. 101, Dept. of Computer Science, University of Toronto, Jan. 1977.
+
+P.W. Sharp, J.M. Fine, A contrast of direct and transformed Nyström pairs, Journal of Computational and Applied Mathematics, Volume 42, Issue 3, 1992, Pages 293-308, ISSN 0377-0427, https://doi.org/10.1016/0377-0427(92)90082-9. (https://www.sciencedirect.com/science/article/pii/0377042792900829)
+
+SHAMPINE L. F. and WATTS H. A. : "Global error estimation for ordinary differential equations", ACM TOMS, Vol. 2, No. 2, June 1976, pp. 172-186.
+
+c[0] = 0
+c[1] = 1/5
+c[2] = 3/10
+c[3] = 3/5
+c[4] = 1
+c[5] = 7/8
+
+a[1,0] = 1/5
+
+a[2,0] = 3/40
+a[2,1] = 9/40
+
+a[3,0] = 3/10
+a[3,1] = -9/10
+a[3,2] = 6/5
+
+a[4,0] = -11/54
+a[4,1] = 5/2
+a[4,2] = -70/27
+a[4,3] = 35/27
+
+a[5,0] = 1631/55296
+a[5,1] = 175/512
+a[5,2] = 575/13824
+a[5,3] = 44275/110592
+a[5,4] = 253/4096
+
+# 5th order solution
+
+b[0] = 37/378
+b[1] = 0
+b[2] = 250/621
+b[3] = 125/594
+b[4] = 0
+b[5] = 512/1771
+
+# 4th order solution
+
+bh[0] = 2825/27648
+bh[1] = 0
+bh[2] = 18575/48384
+bh[3] = 13525/55296
+bh[4] = 277/14336
+bh[5] = 1/4
+
+# Error estimate weights, e = bcap - b
+
+e[0] = 277/64512
+e[1] = 0
+e[2] = -6925/370944
+e[3] = 6925/202752
+e[4] = 277/14336
+e[5] = -277/7084
+
+# Additional 7th stage for the quartic interpolant. This is just the first stage of the next step
+# so it is practically free.
+
+c[6] = 1
+
+a[6,0] = 37/378
+a[6,0] = 0
+a[6,0] = 250/621
+a[6,0] = 125/594
+a[6,0] = 0
+a[6,0] = 512/1771
+
+# 4th order result at the midpoint t_n+1/2
+
+bhalf[0] = 331/3024
+bhalf[1] = 0
+bhalf[2] = 875/2484
+bhalf[3] = 625/9504
+bhalf[4] = 0
+bhalf[5] = -104/1771
+bhalf[6] = 1/32
+
+# 4th order interpolant for the stages k1, k2, k3, k4, k5, k6, k7
+
+bi[0,0] = 0
+bi[0,1] = 1
+bi[0,2] = -115/42
+bi[0,3] = 542/189
+bi[0,4] = -65/63
+
+bi[1,0] = 0
+bi[1,1] = 0
+bi[1,2] = 0
+bi[1,3] = 0
+bi[1,4] = 0
+
+bi[2,0] = 0
+bi[2,1] = 0
+bi[2,2] = 250/69
+bi[2,3] = -3500/621
+bi[2,4] = 500/207
+
+bi[3,0] = 0
+bi[3,1] = 0
+bi[3,2] = 0
+bi[3,3] = 250/297
+bi[3,4] = -125/198
+
+bi[4,0] = 0
+bi[4,1] = 0
+bi[4,2] = 0
+bi[4,3] = 0
+bi[4,4] = 0
+
+bi[5,0] = 0
+bi[5,1] = 0
+bi[5,2] = -384/161
+bi[5,3] = 10496/1771
+bi[5,4] = -5760/1771
+
+bi[6,0] = 0
+bi[6,1] = 0
+bi[6,2] = 3/2
+bi[6,3] = -4
+bi[6,4] = 5/2
