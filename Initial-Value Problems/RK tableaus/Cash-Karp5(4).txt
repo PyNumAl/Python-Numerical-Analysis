@@ -15,9 +15,7 @@ The interpolant weights are obtained by collecting terms, k1 to k7, of the 4th o
 References
 --------
 JACKSON K. R., ENRIGHT W. H. and HULL T. E. : "A theoretical criterion for comparing Runge-Kutta formulas", Technical Report, No. 101, Dept. of Computer Science, University of Toronto, Jan. 1977.
-
 P.W. Sharp, J.M. Fine, A contrast of direct and transformed Nyström pairs, Journal of Computational and Applied Mathematics, Volume 42, Issue 3, 1992, Pages 293-308, ISSN 0377-0427, https://doi.org/10.1016/0377-0427(92)90082-9. (https://www.sciencedirect.com/science/article/pii/0377042792900829)
-
 SHAMPINE L. F. and WATTS H. A. : "Global error estimation for ordinary differential equations", ACM TOMS, Vol. 2, No. 2, June 1976, pp. 172-186.
 
 c[0] = 0
