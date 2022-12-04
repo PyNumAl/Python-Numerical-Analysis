@@ -337,6 +337,7 @@ bi5[13,4] = 50.2558364226176017553
 bi5[13,5] = -53.9020777466385396792
 bi5[13,6] = 20.3006925822100825485
 
+# Four (4) additional stages for a 7th order interpolant for a total of 18 stages.
 # 15th stage
 
 c[14] = 1/5
