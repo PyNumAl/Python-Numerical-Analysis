@@ -77,7 +77,7 @@ def validate_inputs(f, x, h, order, H_form, zero_tol, args):
         raise TypeError('Argument order must be an integer.')
     elif order % 2 != 0:
         raise ValueError('Argument order must be an even integer.')
-    elif order not in [2, 4, 6, 8]:
+    elif order not in [2, 4, 6, 8, 10]:
         raise Exception(f"Value for order must be in {[2, 4, 6, 8]}")
     else:
         pass
@@ -125,7 +125,7 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
     h : int, float, or array_like, optional
         The stepsize to use for the jacobian and hessian approximation.
     
-    order : {2, 4, 6, 8}, optional
+    order : {2, 4, 6, 8, 10}, optional
         The order of the central finite difference method to use. The mixed second-order
         partial derivatives of the Hessian are not approximated if the input vector x has only
         one component. Otherwise, they are efficiently approximated with minimum additional
@@ -136,7 +136,7 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
         or less, since its truncation error is proportional to the fourth derivatives.
         
         The other methods also require minimum additional function evaluations of
-        4, 6, and 8, respectively. They are derived using 2-d taylor series expansion in a
+        4, 6, 8, and 10, respectively. They are derived using 2-d taylor series expansion in a
         Jupyter Lab notebook with the help of SymPy.
         
     H_form : string, {'default', 'blockmat', 'hypermat'}, optional
@@ -184,29 +184,31 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
         stencil = np.arange(1,-2,-1)
         stencil_weights = np.array([
             [0.5, 0, -0.5],
-            [1, -2, 1],
-            [0.5, -1, 0.5]
+            [1, -2, 1]
             ])
     elif order==4:
         stencil = np.arange(2,-3,-1)
         stencil_weights = np.array([
             [-1/12, 2/3, 0, -2/3, 1/12],
-            [-1/12, 4/3, -5/2, 4/3, -1/12],
-            [-1/24, 2/3, -1.25, 2/3, -1/24]
+            [-1/12, 4/3, -5/2, 4/3, -1/12]
             ])
     elif order==6:
         stencil = np.arange(3,-4,-1)
         stencil_weights = np.array([
             [1/60, -3/20, 3/4, 0, -3/4, 3/20, -1/60],
-            [1/90, -3/20, 3/2, -49/18, 3/2, -3/20, 1/90],
-            [1/180, -3/40, 3/4, -49/36, 3/4, -3/40, 1/180]
+            [1/90, -3/20, 3/2, -49/18, 3/2, -3/20, 1/90]
             ])
-    else:
+    elif order==8:
         stencil = np.arange(4,-5,-1)
         stencil_weights = np.array([
             [-1/280, 4/105, -1/5, 4/5, 0, -4/5, 1/5, -4/105, 1/280],
-            [-1/560, 8/315, -1/5, 8/5, -205/72, 8/5, -1/5, 8/315, -1/560],
-            [-1/1120, 4/315, -0.1, 0.8, -205/144, 0.8, -0.1, 4/315, -1/1120]
+            [-1/560, 8/315, -1/5, 8/5, -205/72, 8/5, -1/5, 8/315, -1/560]
+            ])
+    else:
+        stencil = np.arange(5,-6,-1)
+        stencil_weights = np.array([
+            [1/1260, -5/504, 5/84, -5/21, 5/6, 0, -5/6, 5/21, -5/84, 5/504, -1/1260],
+            [1/3150, -5/1008, 5/126, -5/21, 5/3, -5269/1800, 5/3, -5/21, 5/126, -5/1008, 1/3150]
             ])
     for i in range(n):
         f_vals = np.array([
@@ -223,7 +225,7 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
                 f_vals = np.array([
                     fx if si==0 else f(x + si*(h[i]+h[j])) for si in stencil
                     ])
-                H[:,i,j] = stencil_weights[2] @ f_vals / (h[i,i]*h[j,j]) - (r**2*H[:,i,i] + H[:,j,j]) / (2*r)
+                H[:,i,j] = stencil_weights[1] @ f_vals / (2*h[i,i]*h[j,j]) - (r**2*H[:,i,i] + H[:,j,j]) / (2*r)
                 H[:,j,i] = H[:,i,j]
     else:
         pass
