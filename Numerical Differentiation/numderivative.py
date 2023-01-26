@@ -78,7 +78,7 @@ def validate_inputs(f, x, h, order, H_form, zero_tol, args):
     elif order % 2 != 0:
         raise ValueError('Argument order must be an even integer.')
     elif order not in [2, 4, 6, 8, 10]:
-        raise Exception(f"Value for order must be in {[2, 4, 6, 8]}")
+        raise Exception(f"Value for order must be in {[2, 4, 6, 8, 10]}")
     else:
         pass
     
