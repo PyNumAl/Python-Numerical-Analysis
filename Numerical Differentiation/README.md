@@ -7,4 +7,5 @@ Numerical differentiation routines
   - Lagrange polynomial method
   - Taylor series method
 - Jacobian, Gradient, and Hessian approximation
+- Python version of SciLab's numderivative
 - Richardson Extrapolation
