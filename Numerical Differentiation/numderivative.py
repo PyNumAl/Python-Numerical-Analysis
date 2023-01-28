@@ -5,7 +5,7 @@ eps = np.finfo(float).eps
 
 def validate_inputs(f, x, h, order, H_form, zero_tol, args):
     if args is None:
-        f = lambda u, f=f: np.atleast_1d( f(u) )
+        f = lambda u, f=f: np.asarray( f(u) )
     else:
         args_type = (isinstance(args,list) or  isinstance(args,tuple))
         if not args_type:
@@ -13,7 +13,7 @@ def validate_inputs(f, x, h, order, H_form, zero_tol, args):
         elif args_type and len(args)==0:
             raise ValueError('Argument args must be a non-empty tuple or list.')
         else:
-            f = lambda u, f=f: np.atleast_1d( f(u,*args) )
+            f = lambda u, f=f: np.asarray( f(u,*args) )
     
     if zero_tol is not None:
         if type(zero_tol) is not float:
@@ -44,8 +44,7 @@ def validate_inputs(f, x, h, order, H_form, zero_tol, args):
     
     fx = f(x)
     if fx.ndim>1:
-        f = lambda u, f=f: f(u).ravel()
-        fx = fx.ravel()
+        raise Exception('Output of f must be a scalar or 1-d.')
     elif fx.dtype==complex:
         raise TypeError('Complex values not allowed. Output of f must be a vector of real numbers.')
     elif fx.dtype!=int and fx.dtype!=float:
@@ -54,7 +53,7 @@ def validate_inputs(f, x, h, order, H_form, zero_tol, args):
         pass
     
     n = x.size
-    m = fx.size
+    m = {0:fx.ndim, 1:fx.size}[fx.ndim]
     
     if h is None:
         h_def = eps ** (1/(order + 2))
@@ -116,8 +115,8 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
     -------------
     f : callable
         Real-valued vector function whose jacobian and hessian are to be approximated.
-        Scalar, 0-dimensional output is promoted to 1-d while higher dimensional outputs
-        are flattened.
+        Accepted output shapes are 0-d scalars and 1-d array_like. An exception is raised
+        for higher dimensional outputs.
         
     x : array_like
         Real-valued vector on which to approximate the jacobian and hessian.
@@ -161,10 +160,10 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
     
     Returns
     --------
-    J : 2-d array
+    J : 1d or 2-d array
         The Jacobian approximation.
         
-    H : 3-d array
+    H : 2d or 3-d array
         The Hessian approximation.
     
     
@@ -176,9 +175,6 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
     [4] Scilab. (2017). https://github.com/opencollab/scilab/blob/master/scilab/modules/differential_equations/macros/numderivative.sci
     """
     f, x, h, order, H_form, zero_tol, fx, n, m = validate_inputs(f, x, h, order, H_form, zero_tol, args)
-    
-    J = np.zeros((m,n))
-    H = np.zeros((m,n,n))
     
     if order==2:
         stencil = np.arange(1,-2,-1)
@@ -210,32 +206,59 @@ def numderivative(f, x, h=None, order=2, H_form='default', zero_tol=None, args=N
             [1/1260, -5/504, 5/84, -5/21, 5/6, 0, -5/6, 5/21, -5/84, 5/504, -1/1260],
             [1/3150, -5/1008, 5/126, -5/21, 5/3, -5269/1800, 5/3, -5/21, 5/126, -5/1008, 1/3150]
             ])
-    for i in range(n):
-        f_vals = np.array([
-            fx if si==0 else f(x+si*h[i]) for si in stencil
-            ])
-        J[:,i] = stencil_weights[0] @ f_vals / h[i,i]
-        H[:,i,i] = stencil_weights[1] @ f_vals / h[i,i]**2
-    # Compute off-diagonal elements of Hessian
-    # Exploit the symmetry of the Hessian
-    if n>1:
-        for i in range(n-1):
-            for j in range(i+1,n):
-                r = h[i,i]/h[j,j]
-                f_vals = np.array([
-                    fx if si==0 else f(x + si*(h[i]+h[j])) for si in stencil
-                    ])
-                H[:,i,j] = stencil_weights[1] @ f_vals / (2*h[i,i]*h[j,j]) - (r**2*H[:,i,i] + H[:,j,j]) / (2*r)
-                H[:,j,i] = H[:,i,j]
+    # Scalar multi-variable case
+    if m==0:
+        J = np.zeros(n)
+        H = np.zeros((n,n))
+        for i in range(n):
+            f_vals = np.array([
+                fx if si==0 else f(x+si*h[i]) for si in stencil
+                ])
+            J[i] = stencil_weights[0] @ f_vals / h[i,i]
+            H[i,i] = stencil_weights[1] @ f_vals / h[i,i]**2
+        # Compute off-diagonal elements of Hessian
+        # Exploit the symmetry of the Hessian
+        if n>1:
+            for i in range(n-1):
+                for j in range(i+1,n):
+                    r = h[i,i]/h[j,j]
+                    f_vals = np.array([
+                        fx if si==0 else f(x + si*(h[i]+h[j])) for si in stencil
+                        ])
+                    H[i,j] = stencil_weights[1] @ f_vals / (2*h[i,i]*h[j,j]) - (r**2*H[i,i] + H[j,j]) / (2*r)
+                    H[j,i] = H[i,j]
+        else:
+            pass
+    # Vector output case. Indexing is 3-d.
     else:
-        pass
+        J = np.zeros((m,n))
+        H = np.zeros((m,n,n))
+        for i in range(n):
+            f_vals = np.array([
+                fx if si==0 else f(x+si*h[i]) for si in stencil
+                ])
+            J[:,i] = stencil_weights[0] @ f_vals / h[i,i]
+            H[:,i,i] = stencil_weights[1] @ f_vals / h[i,i]**2
+        # Compute off-diagonal elements of Hessian
+        # Exploit the symmetry of the Hessian
+        if n>1:
+            for i in range(n-1):
+                for j in range(i+1,n):
+                    r = h[i,i]/h[j,j]
+                    f_vals = np.array([
+                        fx if si==0 else f(x + si*(h[i]+h[j])) for si in stencil
+                        ])
+                    H[:,i,j] = stencil_weights[1] @ f_vals / (2*h[i,i]*h[j,j]) - (r**2*H[:,i,i] + H[:,j,j]) / (2*r)
+                    H[:,j,i] = H[:,i,j]
+        else:
+            pass
     
-    if H_form=='hypermat':
-        H = H.T
-    elif H_form=='blockmat':
-        H = blockmat_reshape(H)
-    else:
-        pass
+        if H_form=='hypermat':
+            H = H.T
+        elif H_form=='blockmat':
+            H = blockmat_reshape(H)
+        else:
+            pass
     
     # Clean out the output. Values smaller than zero_tol in magnitude
     # are considered zero.
