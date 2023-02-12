@@ -216,7 +216,7 @@ def csten(method,order):
                 ]
             ][idx]
     elif method=='complex':
-        # Only the stencil for the second derivative is stored since the 1st cs-step approximation
+        # Only the stencil for the second derivative is stored since the cs-step approximation
         # for the 1st derivative doesn't suffer from subtractive cancellation.
         stencil, stencil_weights = [
             [
