@@ -96,8 +96,8 @@ def numderivative(f, x, h=None, method='central', order=2, hessdiag=False, H_for
         for i in range(n):
             J[:,i] = np.imag( f(x + 2.22e-16j*e_vec[i]) ) / 2.22e-16
             f_vals = np.array([
-                fx if si==0 else f(x + si * h[i] * 1j) for si in stencil
-                ]).real
+                fx if si==0 else f(x + si * h[i] * 1j).real for si in stencil
+                ])
             H[:,i] = stencil_weights @ f_vals / h[i,i]**2
         
         # Compute off-diagonal elements of Hessian
@@ -107,8 +107,8 @@ def numderivative(f, x, h=None, method='central', order=2, hessdiag=False, H_for
                 for j in range(i+1,n):
                     r = h[i,i]/h[j,j]
                     f_vals = np.array([
-                        fx if si==0 else f(x + si * (h[i]+h[j]) * 1j) for si in stencil
-                        ]).real
+                        fx if si==0 else f(x + si * (h[i]+h[j]) * 1j).real for si in stencil
+                        ])
                     H[:,i,j] = stencil_weights @ f_vals / (2*h[i,i]*h[j,j]) - (r**2*H[:,i,i] + H[:,j,j]) / (2*r)
                     H[:,j,i] = H[:,i,j]
         
@@ -126,8 +126,8 @@ def numderivative(f, x, h=None, method='central', order=2, hessdiag=False, H_for
         for i in range(n):
             J[:,i] = np.imag( f(x + 2.22e-16j*e_vec[i]) ) / 2.22e-16
             f_vals = np.array([
-                fx if si==0 else f(x + si * h[i] * 1j) for si in stencil
-                ]).real
+                fx if si==0 else f(x + si * h[i] * 1j).real for si in stencil
+                ])
             H[:,i] = stencil_weights @ f_vals / h[i,i]**2
         
     elif hessdiag is False:
@@ -374,7 +374,7 @@ def validate_inputs(f, x, h, method, order, hessdiag, H_form, args):
     
     if h is None:
         cons = {'central': 2, 'complex': 2, 'forward': 1, 'backward': 1}[method]
-        h_def = fp.nthroot(eps,order + cons)
+        h_def = fp.nthroot(eps,order + cons) / order
         h = h_def*(1 + np.abs(x))
     else:
         h = np.asarray(h)
