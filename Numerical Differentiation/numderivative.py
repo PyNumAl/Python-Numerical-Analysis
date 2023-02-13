@@ -374,7 +374,7 @@ def validate_inputs(f, x, h, method, order, hessdiag, H_form, args):
     
     if h is None:
         cons = {'central': 2, 'complex': 2, 'forward': 1, 'backward': 1}[method]
-        h_def = fp.nthroot(eps,order + cons) / order
+        h_def = 10 ** np.floor( np.log10( fp.nthroot(eps, order + cons) ) )
         h = h_def*(1 + np.abs(x))
     else:
         h = np.asarray(h)
