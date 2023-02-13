@@ -98,7 +98,7 @@ def numderivative(f, x, h=None, method='central', order=2, hessdiag=False, H_for
             f_vals = np.array([
                 fx if si==0 else f(x + si * h[i] * 1j).real for si in stencil
                 ])
-            H[:,i] = stencil_weights @ f_vals / h[i,i]**2
+            H[:,i,i] = stencil_weights @ f_vals / h[i,i]**2
         
         # Compute off-diagonal elements of Hessian
         # Exploit the symmetry of the Hessian
