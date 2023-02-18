@@ -4,8 +4,8 @@ Numerical differentiation routines
 
 # Current Implementations
 - Finite Difference Coefficients Calculator
-  - Lagrange polynomial method
-  - Taylor series method
+  - symbolic
+  - numerical (double or arbitrary precision)
 - Jacobian, Gradient, and Hessian approximation
 - Python version of SciLab's numderivative
 - Richardson Extrapolation
