@@ -14,6 +14,7 @@ Numerical Analysis algorithms/methods in Python.
 - Richardson Extrapolation
 
 **Interpolation**
+- Differentiable Vandermonde Polynomial
 - Linear Splines
 
 **Boundary-Value Problems**
