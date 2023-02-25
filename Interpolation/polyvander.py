@@ -63,8 +63,6 @@ def horner(x, a, k):
     Recursive Horner's rule
     
     Evaluate efficiently the Vandermonde polynomial or its derivatives/antiderivatives.
-    The vectorized version of this function, using numpy.vectorize, is used internally
-    inside the polyvander function.
     
     Parameters
     --------
@@ -80,8 +78,11 @@ def horner(x, a, k):
     Returns
     --------
     val : int, float, or complex
-        The value of the k-th derivative/antiderivative of the polynomial given by at x.
+        The value of the k-th derivative/antiderivative of the polynomial given by the coefficients a at x.
     """
+    if isinstance(x, list) or isinstance(x,tuple):
+        x = np.asarray(x)/1.0
+    
     if type(x)==int:
         x /= 1.0
     
@@ -98,7 +99,7 @@ def horner(x, a, k):
         val = np.full_like(x, factorial(k) * a[k])
     elif k == 0:
         if n==1:
-            val = a[0]
+            val = np.full_like(x, a[0])
         elif n==2:
             val = a[0] + x * a[1]
         else:
@@ -110,5 +111,3 @@ def horner(x, a, k):
     else:
         pass
     return val
-
-vhorner = np.vectorize(horner, excluded=[1,2], signature='()->()')
