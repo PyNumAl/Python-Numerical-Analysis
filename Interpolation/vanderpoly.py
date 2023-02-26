@@ -33,8 +33,8 @@ def vanderpoly(xp,yp):
     
     Returns
     --------
-    P : callable
-        Function evaluating the polynomial interpolator and its derivatives and anti-derivatives.
+    Pfun : callable
+        Function evaluating the polynomial interpolator and its derivatives/antiderivatives.
     """
     xp = np.asfarray(xp)
     yp = np.asfarray(yp)
