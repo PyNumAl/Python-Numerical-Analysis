@@ -58,7 +58,7 @@ def polyvander(xp,yp):
             return np.array([ horner(du_dx*(x-a)-1, coeff[:,i], k) * du_dx ** k for i in range(coeff.shape[1])]).T
     return P
 
-def horner(x, a, k):
+def horner(x, a, k=0):
     """
     Recursive Horner's rule
     
@@ -80,34 +80,40 @@ def horner(x, a, k):
     val : int, float, or complex
         The value of the k-th derivative/antiderivative of the polynomial given by the coefficients a at x.
     """
-    if isinstance(x, list) or isinstance(x,tuple):
-        x = np.asarray(x)/1.0
-    
-    if type(x)==int:
-        x /= 1.0
-    
-    if type(k) is not int:
-        raise TypeError('Argument k must be an integer.')
+    a = np.asarray(a)
+    if a.ndim==0:
+        return horner(x, [a.item()], k)
+    if a.ndim>1:
+        return np.array([horner(x, a[i], k) for i in range(a.shape[0])]).T
     else:
-        pass
-    
-    n = len(a)
-    d = n - 1
-    if k > d:
-        val = np.zeros_like(x)
-    elif k == d:
-        val = np.full_like(x, factorial(k) * a[k])
-    elif k == 0:
-        if n==1:
-            val = np.full_like(x, a[0])
-        elif n==2:
-            val = a[0] + x * a[1]
+        if isinstance(x, list) or isinstance(x,tuple):
+            x = np.asarray(x)/1.0
+        
+        if type(x)==int:
+            x /= 1.0
+        
+        if type(k) is not int:
+            raise TypeError('Argument k must be an integer.')
         else:
-            val = a[0] + x * horner(x, a[1:], k)
-    elif k<d and k>0:
-        val = horner(x, a[1:] * np.arange(1,n), k-1)
-    elif k<0:
-        val = horner(x, np.hstack(( 0, a / np.arange(1,n+1) )), k+1)
-    else:
-        pass
-    return val
+            pass
+        
+        n = len(a)
+        d = n - 1
+        if k > d:
+            val = np.zeros_like(x)
+        elif k == d:
+            val = np.full_like(x, factorial(k) * a[k])
+        elif k == 0:
+            if n==1:
+                val = np.full_like(x, a[0])
+            elif n==2:
+                val = a[0] + x * a[1]
+            else:
+                val = a[0] + x * horner(x, a[1:], k)
+        elif k<d and k>0:
+            val = horner(x, a[1:] * np.arange(1,n), k-1)
+        elif k<0:
+            val = horner(x, np.hstack(( 0, a / np.arange(1,n+1) )), k+1)
+        else:
+            pass
+        return val
