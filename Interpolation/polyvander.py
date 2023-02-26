@@ -84,7 +84,7 @@ def horner(x, a, k=0):
     if a.ndim==0:
         return horner(x, [a.item()], k)
     if a.ndim>1:
-        return np.array([horner(x, a[i], k) for i in range(a.shape[0])]).T
+        return np.array([horner(x, a[i], k) for i in range(a.shape[0])])
     else:
         if isinstance(x, list) or isinstance(x,tuple):
             x = np.asarray(x)/1.0
