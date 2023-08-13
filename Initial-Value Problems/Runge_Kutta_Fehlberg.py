@@ -1,6 +1,6 @@
 import numpy as np
 from warnings import warn
-from scipy.interpolate import BPoly, CubicHermiteSpline as CHS
+from scipy.interpolate import CubicHermiteSpline as CHS
 
 EPS = np.finfo(float).eps
 def RMS(x):
@@ -16,37 +16,13 @@ class RKF:
         dy / dt = f(t, y)
         y(t0) = y0
     
-    This class implements Runge-Kutta-Fehlberg (RKF) pairs from orders 1 to 8 [1-2]. Although practical results
-    indicate that local extrapolation is preferable [3-5], local extrapolation is not performed in this
-    implementation because the RKF1(2), RKF2(3), and RKF3(4) pairs are first-same-as-last (FSAL) when
-    using the lower order formulas; and the RKF8(9) pair doesn't provide the 9th-order formula, only
-    the 8th-order formula and the expression for the error estimate.
+    This class implements Runge-Kutta-Fehlberg (RKF) pairs from orders 1 to 8 [1-2]. Practical results
+    indicate that local extrapolation is preferable [3-5], and local extrapolation is performed except
+    for the RK pairs RKF1(2), RKF2(3), and RKF3(4) because they are first-same-as-last (FSAL) when
+    using the lower order formulas.
     
     For dense output, a "free" 3rd-order interpolant (scipy.interpolate.CubicHermiteSpline) is provided
-    for RKF pairs of orders below 5 e.g. RKF4(5), RKF3(4), etc. For RKF pairs of orders 5 and 6, a quintic
-    hermite spline is constructed while a septic hermite spline is used for order 7 and 8. It can be shown
-    that for a p-th order Runge-Kutta method, one can get by with dense output of order p−1 [6].
-    
-    The fifth-degree interpolant is constructed by obtaining the solution and derivative values at the
-    midpoint of each subinterval while the seventh-degree interpolant obtains the solution and derivative
-    values at the one-third and two-thirds step of each subinterval. Then the symbolic expressions for the
-    second (and third derivatives for the seventh-degree spline) are obtained in terms of the calculated values:
-        
-        y_n : solution value at the left endpoint
-        y_n+1/3 : solution value at 1/3 of the subinterval
-        y_n+1/2 : solution value at the midpoint
-        y_n+2/3 : solution value at 2/3 of the subinterval
-        y_n+1 : solution value at the right endpoint
-        
-        f_n : derivative value at the left endpoint
-        f_n+1/3 : derivative value at 1/3 of the subinterval
-        f_n+1/2 : derivative value at the midpoint
-        f_n+2/3 : derivative value at 2/3 of the subinterval
-        f_n+1 : derivative value at the right endpoint
-        
-    Symbolic Python (SymPy) is used for this purpose. Finally, SciPy's BPoly.from_derivatives
-    is used to create the higher-order splines after calculating the required higher derivatives
-    at the nodes.
+    for a continuous solutions throughout the integration domain.
     
     A more robust PI stepsize control as described in [7-8] is implemented for adaptive stepsize control.
     
@@ -112,27 +88,12 @@ class RKF:
             7 : RKF7(8) in Table X of [2]
             
             8 : RKF8(9) in Table XII of [2]
-                The utility of this pair might be limited within floating point accuracy [11].
-                When solving the test problem:
-                    
-                    dy2 / dt2 = -y, with y0 = 1 and yp0 = 1 and analytical solution of
-                    y(t) = sin(t) + cos(t)
-                
-                this RKF8(9) pair takes larger stepsizes than the RKF7(8) for stringent
-                accurancy requirements e.g. rtol=1e-12 and atol=1e-12, but its accuracy is
-                severely worse than the RKF7(8) pair. After reading [12], I realize that there's
-                nothing wrong with my implementation, after double-checking the coefficients many times.
-                This method simply has quite worse accuracy than other high-order RK pairs.
                 This pair and its coefficients are also implemented in
                 (https://github.com/jacobwilliams/Fortran-Astrodynamics-Toolkit/blob/master/src/rk_module_variable_step.f90)
                 
     
     rtol, atol : float or array_like, optional
         Relative and absolute tolerances.
-    
-    dense_output : boolean, optional
-        Whether to compute and output spline interpolants or not. The interpolants are computed "lazily" i.e.
-        they're computed after the integration. If False, they're not computed at all.
     
     maxiter : int, optional
         Maximum number of iterations for adaptive integration of the ODEs. A warning statement is printed when reached.
@@ -175,13 +136,13 @@ class RKF:
     [11] Rackauckas, C. (https://scicomp.stackexchange.com/questions/14433/constructing-explicit-runge-kutta-methods-of-order-9-and-higher), Constructing explicit Runge Kutta methods of order 9 and higher, Jun 19, 2017 at 1:37
     [12] Rocha, A. (2018). Numerical Methods and Tolerance Analysis for Orbit Propagation, https://www.sjsu.edu/ae/docs/project-thesis/Angel.Rocha.Sp18.pdf
     """
-    def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=4, rtol=1e-3, atol=1e-6, dense_output=True, maxiter=10**5, args=None):
+    def __init__(self, fun, tspan, y0, h=None, hmax=np.inf, hmin=None, order=4, rtol=1e-3, atol=1e-6, maxiter=10**5, args=None):
         
         y0, rtol, atol = self._validate_tol(y0, order, rtol, atol)
         
         tspan, h, hmax, hmin = self._validate_tspan(tspan, h, hmax, hmin)
         
-        fun = self._validate_fun(fun, dense_output, args)
+        fun = self._validate_fun(fun, args)
         
         if type(maxiter)!=int or maxiter<1:
             raise ValueError('maxiter must be a positive integer.')
@@ -189,18 +150,16 @@ class RKF:
         self.C, self.A, self.B, self.E, self.FSAL = self._rkf_tableau(order)
         t, y, f, hacc, hrej = self._integrate(fun, tspan, y0, h, hmax, hmin, order, rtol, atol, maxiter)
         
-        if dense_output:
-            sol = self._spline_interpolant(fun, t, y, f, order)
-        else:
-            sol = None
+        sol = CHS(t, y, f)
+        
         self.t = t
         self.y = y
         self.sol = sol
-        self.accepted_steps = hacc
-        self.rejected_steps = hrej
+        self.hacc = hacc
+        self.hrej = hrej
     
     def __repr__(self):
-        attrs = ['t','y','sol','accepted_steps','rejected_steps']
+        attrs = ['t','y','sol','hacc','hrej']
         m = max(map(len,attrs)) + 1
         return '\n'.join([a.rjust(m) + ': ' + repr(getattr(self,a)) for a in attrs])    
     
@@ -271,8 +230,8 @@ class RKF:
         MIN_FACTOR = .1
         SAFETY = .9
         EXPONENT = -1/(order+1)
-        KI = -.7/order
-        KP = .4/order
+        KI = -.7/(order+1)
+        KP = .4/(order+1)
         
         t0, tf = tspan
         y0 = np.atleast_1d(y0)
@@ -351,52 +310,8 @@ class RKF:
         
         return t, y, f, hacc, hrej
     
-    def _spline_interpolant(self, fun, t, y, f, order):
-        if order<5:
-            return CHS(t, y, f)
-        else:
-            steps = t.size - 1
-            h = t[1:] - t[:-1]
-            k = y.shape[1]
-            if order>4 and order<7:
-                y_mid = np.zeros((steps, k))
-                f_mid = np.zeros_like(y_mid)
-                d2y = np.zeros_like(f)
-                for i in range(steps):
-                    _, y_mid[i], f_mid[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, .5*h[i])
-                    d2y[i] = (-46*y[i] + 32*y_mid[i] + 14*y[i+1]) / h[i]**2 - (12*f[i] + 16*f_mid[i] + 2*f[i+1]) / h[i]
-                d2y[-1] = (14*y[-2] + 32*y_mid[-1] - 46*y[-1]) / h[-1]**2 + (2*f[-2] + 16*f_mid[-1] + 12*f[-1]) / h[-1]
-                Y = np.zeros((t.size, 3, k))
-                Y[:,0,:] = y
-                Y[:,1,:] = f
-                Y[:,2,:] = d2y
-            else:
-                y13 = np.zeros(( steps, k ))
-                y23 = np.zeros_like(y13)
-                f13 = np.zeros_like(y13)
-                f23 = np.zeros_like(y13)
-                d2y = np.zeros_like(f)
-                d3y = np.zeros_like(f)
-                
-                for i in range(steps):
-                    _, y13[i], f13[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, 1/3*h[i])
-                    _, y23[i], f23[i], _ = self._rkf_step(fun, t[i], y[i], f[i], order, 2/3*h[i])
-                    d2y[i] = (-291/2*y[i] + 0*y13[i] + 243/2*y23[i] + 24*y[i+1]) / h[i]**2 - (22*f[i] + 54*f13[i] + 27*f23[i] + 2*f[i+1]) / h[i]
-                    d3y[i] = (5073/2*y[i] + 1458*y13[i] - 6561/2*y23[i] - 714*y[i+1]) / h[i]**3 + (579/2*f[i] + 1296*f13[i] + 1539/2*f23[i] + 60*f[i+1]) / h[i]**2
-                
-                d2y[-1] = (24*y[-2] + 243/2*y13[-1] + 0*y23[-1] - 291/2*y[-1]) / h[-1]**2 + (2*f[-2] + 27*f13[-1] + 54*f23[-1] + 22*f[-1]) / h[-1]
-                d3y[-1] = (714*y[-2] + 6561/2*y13[-1] - 1458*y23[-1] - 5073/2*y[-1]) / h[-1]**3 + (60*f[-2] + 1539/2*f13[-1] + 1296*f23[-1] + 579/2*f[-1]) / h[-1]**2
-            
-                Y = np.zeros((t.size, 4, k))
-                Y[:,0,:] = y
-                Y[:,1,:] = f
-                Y[:,2,:] = d2y
-                Y[:,3,:] = d3y
-            
-            return BPoly.from_derivatives(t, Y)
-    
     @staticmethod
-    def _validate_fun(fun, dense_output, args):
+    def _validate_fun(fun, args):
         if args is not None:
             if isinstance(args, tuple) or isinstance(args, list) and len(args)>0:
                 fun = lambda t, y, fun=fun: np.atleast_1d( fun(t, y, *args) )
@@ -404,9 +319,6 @@ class RKF:
                 raise ValueError('args must be a tuple or list with at least length of 1.')
         else:
             fun = lambda t, y, fun=fun: np.atleast_1d( fun(t, y) )
-        
-        if type(dense_output)!=bool:
-            raise TypeError('Argument dense_output must be a boolean.')
         
         return fun
     
@@ -509,6 +421,7 @@ class RKF:
                 [1/256, 255/256, 0]
                 ])
             B = A[-1]
+            # 2nd order coefficients
             BCAP = np.array([1/512, 255/256, 1/512])
         elif order==2:
             FSAL = True
@@ -518,6 +431,7 @@ class RKF:
             A[2,:2] = [-189/800, 729/800]
             A[3,:3] = [214/891, 1/33, 650/891]
             B = A[-1]
+            # 3rd order coefficients
             BCAP = np.array([533/2106, 0, 800/1053, -1/78])
         elif order==3:
             FSAL = True
@@ -528,6 +442,7 @@ class RKF:
             A[3,:3] = [805/1444, -77175/54872, 97125/54872]
             A[4,:4] = [79/490, 0, 2175/3626, 2166/9065]
             B = A[-1]
+            # 4th order coefficients
             BCAP = np.array([229/1470, 0, 1125/1813, 13718/81585, 1/18])
         elif order==4:
             FSAL = False
@@ -538,8 +453,10 @@ class RKF:
             A[3,:3] = [1932/2197, -7200/2197, 7296/2197]
             A[4,:4] = [439/216, -8, 3680/513, -845/4104]
             A[5,:5] = [-8/27, 2, -3544/2565, 1859/4104, -11/40]
-            B = np.array([25/216, 0, 1408/2565, 2197/4104, -1/5, 0])
-            BCAP = np.array([16/135, 0, 6656/12825, 28561/56430, -9/50, 2/55])
+            # 4th order coefficients
+            BCAP = np.array([25/216, 0, 1408/2565, 2197/4104, -1/5, 0])
+            # 5th order coefficients
+            B = np.array([16/135, 0, 6656/12825, 28561/56430, -9/50, 2/55])
         elif order==5:
             FSAL = False
             C = np.array([0, 1/6, 4/15, 2/3, 4/5, 1, 0, 1])
@@ -551,8 +468,10 @@ class RKF:
             A[5,:5] = [361/320, -18/5, 407/128, -11/80, 55/128]
             A[6,:6] = [-11/640, 0, 11/256, -11/160, 11/256, 0]
             A[7,:7] = [93/640, -18/5, 803/256, -11/160, 99/256, 0, 1]
-            B = np.array([31/384, 0, 1125/2816, 9/32, 125/768, 5/66, 0, 0])
-            BCAP = np.array([7/1408, 0, 1125/2816, 9/32, 125/768, 0, 5/66, 5/66])
+            # 5th order coefficients
+            BCAP = np.array([31/384, 0, 1125/2816, 9/32, 125/768, 5/66, 0, 0])
+            # 6th order coefficients
+            B = np.array([7/1408, 0, 1125/2816, 9/32, 125/768, 0, 5/66, 5/66])
         elif order==6:
             FSAL = False
             C = np.array([0, 2/33, 4/33, 2/11, 1/2, 2/3, 6/7, 1, 0, 1])
@@ -566,11 +485,13 @@ class RKF:
             A[7,:7] = [-733/176, 0, 141/8, -335763/23296, 216/77, -4617/2816, 7203/9152]
             A[8,:8] = [15/352, 0, 0, -5445/46592, 18/77, -1215/5632, 1029/18304, 0]
             A[9,:9] = [-1833/352, 0, 141/8, -51237/3584, 18/7, -729/512, 1029/1408, 0, 1]
-            B = np.array([
+            # 6th order coefficients
+            BCAP = np.array([
                 77/1440, 0, 0, 1771561/6289920, 32/105, 243/2560,
                 16807/74880, 11/270, 0, 0
                 ])
-            BCAP = np.array([
+            # 7th order coefficients
+            B = np.array([
                 11/864, 0, 0, 1771561/6289920, 32/105, 243/2560,
                 16807/74880, 0, 11/270, 11/270
                 ])
@@ -593,11 +514,13 @@ class RKF:
             A[11,:11] = [3/205, 0, 0, 0, 0, -6/41, -3/205, -3/41, 3/41, 6/41, 0]
             A[12,:12] = [-1777/4100, 0, 0, -341/164, 4496/1025,
                          -289/82, 2193/4100, 51/82, 33/164, 12/41, 0, 1]
-            B = np.array([
+            # 7th order coefficients
+            BCAP = np.array([
                 41/840, 0, 0, 0, 0, 34/105, 9/35, 9/35,
                 9/280, 9/280, 41/840, 0, 0
                 ])
-            BCAP = np.array([
+            # 8th order coefficients
+            B = np.array([
                 0, 0, 0, 0, 0, 34/105, 9/35, 9/35,
                 9/280, 9/280, 0, 41/840, 41/840
                 ])
@@ -689,7 +612,7 @@ class RKF:
             A[11,:11] = [
                 .12732477068667114646645181799160,
                 0, 0, 0, 0, 0, 0,
-                .11448895006396105323658875721817,
+                .11448805006396105323658875721817,
                 .28773020709697992776202201849198,
                 .50945379459611363153735885079465,
                 -.14799682244372575900242144449640
@@ -756,20 +679,30 @@ class RKF:
                 0,
                 1
                 ]
+            # 9th order coefficients
             B = np.zeros(17)
-            B[ [0, 8, 9, 10, 11, 12, 13, 14] ] = [
-                .32256083500216249913612900960247e-1,
-                .25983725283715403018887023171963,
-                .92847805996577027788063714302190e-1,
-                .16452339514764342891647731842800,
-                .17665951637860074367084298397547,
-                .23920102320352759374108933320941,
-                .39484274604202853746752118829325e-2,
-                .30726495475860640406368305522124e-1
-                ]
-        if order!=8:
-            E =  B - BCAP
-        else:
-            E = np.zeros(17)
-            E[ [0, 14, 15, 16] ] = .30726495475860640406368305522124e-1*np.array([1., 1., -1., -1.])
+            B[0] = 0.0015295880243556095072445954381230
+
+            B[8] = 0.25983725283715403018887023171963
+            B[9] = 0.092847805996577027788063714302190
+            B[10] = 0.16452339514764342891647731842800
+            B[11] = 0.17665951637860074367084298397547
+            B[12] = 0.23920102320352759374108933320941
+            B[13] = 0.0039484274604202853746752118829325
+            
+            B[15] = 0.030726495475860640406368305522124
+            B[16] = 0.030726495475860640406368305522124
+            # 8th order coefficients
+            BCAP = np.zeros(17)
+            BCAP[0] = 0.032256083500216249913612900960247
+            BCAP[8] = 0.25983725283715403018887023171963
+            BCAP[9] = 0.092847805996577027788063714302190
+            BCAP[10] = 0.16452339514764342891647731842800
+            BCAP[11] = 0.17665951637860074367084298397547
+            BCAP[12] = 0.23920102320352759374108933320941
+            BCAP[13] = 0.0039484274604202853746752118829325
+            BCAP[14] = 0.030726495475860640406368305522124
+            
+        E =  B - BCAP
+        
         return C, A, B, E, FSAL
