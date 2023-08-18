@@ -1,8 +1,6 @@
 Exact Rational Coefficients for Fehlberg's RKNG5(6) Pair.
-It is First-Same-As-Last (FSAL) only when using the lower,
-seventh (7th) order formula i.e. local extrapolation is not performed,
-unlike newer RK pairs that are both FSAL and locally extrapolating
-always i.e. using the higher order formula to advance the solution.
+It is First-Same-As-Last (FSAL) only when using the lower, fifth-(5th) order formula i.e. local extrapolation is not performed,
+unlike newer RK pairs that are both FSAL and locally extrapolating always i.e. using the higher order formula to advance the solution.
 
 References:
 [1] Classical seventh-, sixth-, and fifth-order Runge-Kutta-Nystrom formulas with stepsize control for general second-order differential equations. https://ntrs.nasa.gov/citations/19740026877
