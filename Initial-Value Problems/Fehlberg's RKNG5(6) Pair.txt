@@ -1,0 +1,75 @@
+Exact Rational Coefficients for Fehlberg's RKNG5(6) Pair.
+It is First-Same-As-Last (FSAL) only when using the lower,
+seventh (7th) order formula i.e. local extrapolation is not performed,
+unlike newer RK pairs that are both FSAL and locally extrapolating
+always i.e. using the higher order formula to advance the solution.
+
+References:
+[1] Classical seventh-, sixth-, and fifth-order Runge-Kutta-Nystrom formulas with stepsize control for general second-order differential equations. https://ntrs.nasa.gov/citations/19740026877
+[2] Klassische Runge-Kutta-Nyström-Formeln mit Schrittweiten-Kontrolle für Differentialgleichungenx''=f(t,x,x'). https://link.springer.com/article/10.1007/BF02253548
+
+c = [0, 4/15, 2/5, 3/5, 9/10, 3/4, 2/7, 1, 1]
+
+# Interior solution weights
+a[1,:1] = [8/225]
+a[2,:2] = [1/25,1/25]
+a[3,:3] = [9/160, 81/800, 9/400]
+a[4,:4] = [81/640, 0, 729/3200, 81/1600]
+a[5,:5] = [11283/88064, 0, 3159/88064, 7275/44032, -33/688]
+a[6,:6] = [6250/194481, 0, 0, 0, -3400/194481, 1696/64827]
+a[7,:7] = [-6706/45279, 0, 0, 0, 1047925/1946997, -147544/196209, 1615873/1874886]
+a[8,:8] = [31/360, 0, 0, 0, 0, 64/585, 2401/7800, -1/300]
+
+# Interior derivative weights
+ap[1,:1] = [4/15]
+ap[2,:2] = [1/10, 3/10]
+ap[3,:3] = [3/20, 0, 9/20]
+ap[4,:4] = [9/40, 0, 0, 27/40]
+ap[5,:5] = [11/48, 0, 0, 5/8, -5/48]
+ap[6,:6] = [27112/194481, 0, 0, 56450/64827, 80000/194481, -24544/21609]
+ap[7,:7] = [-26033/41796, 0, 0, -236575/38313, -14500/10449, 275936/45279, 228095/73788]
+ap[8,:8] = [7/81, 0, 0, 0, -250/3483, 160/351, 2401/5590, 1/10]
+
+# 6th-order solution weights
+b[0] = 31/360
+b[1] = 0
+b[2] = 0
+b[3] = 0
+b[4] = 0
+b[5] = 64/585
+b[6] = 2401/7800
+b[7] = 0
+b[8] = -1/300
+
+# 5th-order solution weights
+bh[0] = 31/360
+bh[1] = 0
+bh[2] = 0
+bh[3] = 0
+bh[4] = 0
+bh[5] = 64/585
+bh[6] = 2401/7800
+bh[7] = -1/300
+bh[8] = 0
+
+# Solution error estimate weights, e = bh - b
+e[0] = 0
+e[1] = 0
+e[2] = 0
+e[3] = 0
+e[4] = 0
+e[5] = 0
+e[6] = 0
+e[7] = -1/300
+e[8] = 1/300
+
+# 5th-order derivative weights
+bph[0] = 7/81
+bph[1] = 0
+bph[2] = 0
+bph[3] = 0
+bph[4] = -250/3483
+bph[5] = 160/351
+bph[6] = 2401/5590
+bph[7] = 1/10
+bph[8] = 0
