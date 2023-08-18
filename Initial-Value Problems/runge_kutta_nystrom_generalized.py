@@ -3,7 +3,7 @@ from warnings import warn
 from scipy.interpolate import BPoly
 EPS = np.finfo(float).eps
 
-def RMS(x,axis=0):
+def RMS(x,axis=None):
     out = np.sqrt(
         np.mean(
             np.square(x)
