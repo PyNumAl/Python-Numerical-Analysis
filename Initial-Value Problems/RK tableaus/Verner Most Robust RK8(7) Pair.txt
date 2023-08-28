@@ -1,4 +1,4 @@
-Verner's Most Robust RK8(7) Pair from Verner's website.
+Verner's Most Robust RK8(7) Pair from Jim Verner's website.
 Zero-based indexing is adopted here.
 
 Links:
