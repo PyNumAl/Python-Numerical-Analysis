@@ -1,4 +1,4 @@
-Verner's Most Efficient RK9(8) Pair copy-pasted from Jim Verner's website.
+Verner's Most Efficient RK9(8) Pair from Jim Verner's website.
 Zero-based indexing is adopted here.
 
 Links:
