@@ -1,6 +1,14 @@
 Verner's Most Robust RK6(5) Pair from Jim Verner's website.
 Zero-based indexing is adopted here.
 
+# (Issue found on 5:16 PM, Mon, 28 Aug 2023)
+# c[10] =  207/250 ---> wrong coefficient
+# The correct c[10] value is c[10]=19/20, or 0.95 in decimal value
+# I found this issue when testing the 6th order interpolant on some test ODEs, both autonomous and non-autonomous.
+# 6th order interpolant worked well for the autonomous test ode, y'=y, but failed massively on another non-autonomous test ode.
+# c[11] =  7/25 ---> wrong coefficient
+# The correct c[11] value is c[11]=9/50, or 0.18 in decimal value.
+
 Links:
 https://www.sfu.ca/~jverner/
 https://www.sfu.ca/~jverner/RKV65.IIIXb.Robust.00010102836.081204.CoeffsOnlyRAT
@@ -183,7 +191,7 @@ bi[9,6] =  0
 #------------------------------------------------
 # Two additional stages for 6th-order interpolant
 #------------------------------------------------
-c[10] =  207/250
+c[10] = 19/20
 
 a[10,0] =  51553925666573/669344716800000
 a[10,1] =  0
@@ -196,7 +204,7 @@ a[10,7] =  78900944453/1262914560000
 a[10,8] = -5656570731/175404800000
 a[10,9] =  3249/200000
 
-c[11] =  7/25
+# c[11] = 9/50
 
 a[11,0] =  8772752114029937691/112461115520000000000
 a[11,1] =  0
