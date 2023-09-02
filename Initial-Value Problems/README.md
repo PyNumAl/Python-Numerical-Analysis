@@ -11,6 +11,3 @@ Methods for solving initial-value problems
     - Runge-Kutta-Nystrom methods (**work in progress**)
   - General second-order ODEs $\frac{d^{2}y}{dt^{2}} = f(t,y,\frac{dy}{dt})$
     - Runge-Kutta-Nystrom-Generalized (RKNG) methods
-      - **Direct** RKNG pairs (orders **4** to **7**)
-      - Transformed Nystrom pairs (**work in progress**)
-    - Direct Adams-Bashforth-Moulton (DABM) methods (**work in progress**)
