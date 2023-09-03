@@ -1,5 +1,5 @@
 Misha Stepanov's RK5(4) Pair in Figure 3 of their 2022 paper,
-"Two continuous (4, 5) pairs of explicit 9-stage Runge-Kutta methods"
+"Two continuous (4, 5) pairs of explicit 9-stage Runge-Kutta methods".
 
 References
 Stepanov, Misha. (2022, April 19. "Two continuous (4, 5) pairs of explicit 9-stage Runge-Kutta methods". https://arxiv.org/abs/2202.08443
